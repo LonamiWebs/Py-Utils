@@ -1,0 +1,12 @@
+from tokens.token import Token
+
+
+class Iff(Token):
+    def __init__(self):
+        super().__init__(operands=2)
+
+    def apply(self, left, right):
+        return left == right
+
+    def __repr__(self):
+        return '<->'
