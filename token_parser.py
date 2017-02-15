@@ -1,6 +1,8 @@
+from tokens.andd import And
 from tokens.expression import Expression
 from tokens.iff import Iff
 from tokens.nop import Not
+from tokens.orr import Or
 from tokens.then import Then
 from tokens.variable import Variable
 
@@ -37,6 +39,10 @@ class TokenParser:
                 expressions_stack[-1].add_token(Then())
             elif w == '<->':
                 expressions_stack[-1].add_token(Iff())
+            elif w == 'v':
+                expressions_stack[-1].add_token(Or())
+            elif w == '^':
+                expressions_stack[-1].add_token(And())
 
             else:
                 expressions_stack[-1].add_token(Variable(w))
