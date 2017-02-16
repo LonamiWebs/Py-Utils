@@ -39,17 +39,56 @@ class infprimeseq:
 
     def __next__(self):
         self.i += 1
+
+        # self.i should always be ≤ len(self.buffer), or someone messed with i
         if self.i >= len(self.buffer):
-            i = self.buffer[-1]+2
-            while i not in self:
-                i += 2
-            self.buffer.append(i)
-        return self.buffer[self.i]
+            # Prime numbers ≥ 5 satisfy either of the following:
+            #   (n - 5) % 6 == 0
+            #   (n - 7) % 6 == 0
+            # If the first condition is met on the last prime,
+            # then check if (last prime + 2) is prime. If it
+            # is not, then check i+6n, i+6n+2, for n -> inf
+            #
+            # If the first condition is not met, then the second
+            # condition will, so jump 4 (to complete a cycle) to
+            # check the next prime, and repeat i+6n, i+6n+2
+            prime = self.buffer[-1]
+            if (prime - 5) % 6 == 0:
+                prime += 2
+                if self._fastcontains(prime):
+                    self.buffer.append(prime)
+                    return prime
+
+            prime += 4
+            while True:
+                if self._fastcontains(prime):
+                    self.buffer.append(prime)
+                    return prime
+                prime += 2
+
+                if self._fastcontains(prime):
+                    self.buffer.append(prime)
+                    return prime
+                prime += 4
+        else:
+            return self.buffer[self.i]
 
     @staticmethod
     def _canbeprime(n):
-        # Assume odd number >= 5
+        # Assume odd number ≥ 5
         return ((n - 5) % 6 == 0) or ((n - 7) % 6 == 0)
+
+    def _fastcontains(self, n):
+        # This won't handle special cases (< 5) neither perform check
+        # whether it can possibly be prime or not (_canbeprime)
+        limit = int(n**0.5)
+        for p in self.buffer:
+            if p > limit:
+                return True
+            if n % p == 0:
+                return False
+
+        raise ValueError('The gap between primes was incredibly large. This should not ever happen.')
 
     def __contains__(self, n):
         # Special cases
@@ -69,7 +108,8 @@ class infprimeseq:
                 return True
             if n % p == 0:
                 return False
-        # "Slow" fallback
+
+        # "Slow" fallback, never called when invoked sequentially (via iterator)
         for i in range(self.buffer[-1]+2, limit + 1, 2):
             if n % i == 0:
                 return False
