@@ -18,8 +18,20 @@ def is_safe_prime(n):
 
 
 class infprimeseq:
-    def __init__(self):
+    def __init__(self, initial_buffer_size=None):
+        self.i = -1
         self.buffer = [2, 3, 5]
+
+        if initial_buffer_size:
+            if initial_buffer_size < 0:
+                raise ValueError('initial_buffer_size must be a positive integer.')
+
+            # Extend the buffer up to initial_buffer_size
+            for i in range(initial_buffer_size):
+                self.__next__()
+
+            # Reset the internal stepper
+            self.i = -1
 
     def __iter__(self):
         self.i = -1
@@ -66,8 +78,8 @@ class infprimeseq:
 
 
 class primeseq(infprimeseq):
-    def __init__(self, stop):
-        super().__init__()
+    def __init__(self, stop, initial_buffer_size=None):
+        super().__init__(initial_buffer_size=initial_buffer_size)
         self.stop = stop
 
     def __next__(self):
