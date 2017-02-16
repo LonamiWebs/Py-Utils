@@ -64,6 +64,20 @@ class infprimeseq:
 
         return True
 
+
+class primeseq(infprimeseq):
+    def __init__(self, stop):
+        super().__init__()
+        self.stop = stop
+
+    def __next__(self):
+        p = super().__next__()
+        if p < self.stop:
+            return p
+        else:
+            raise StopIteration()
+
+
 if __name__ == '__main__':
     print('Testing…')
     ps = infprimeseq()
