@@ -122,12 +122,15 @@ class primeseq(infprimeseq):
         super().__init__(initial_buffer_size=initial_buffer_size)
         self.stop = stop
 
-    def __next__(self):
-        p = super().__next__()
-        if p < self.stop:
-            return p
-        else:
-            raise StopIteration()
+        # After everything has been initialized, we can now override __next__
+        def nxt(slf):
+            p = super().__next__()
+            if p < slf.stop:
+                return p
+            else:
+                raise StopIteration()
+
+        self.__next__ = nxt
 
 
 if __name__ == '__main__':
