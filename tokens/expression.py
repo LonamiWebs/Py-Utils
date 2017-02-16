@@ -45,9 +45,7 @@ class Expression(Token):
     @staticmethod
     def _binary_digit(decimal, index_from_right):
         # index_from_right is 0 based
-        half = 2 ** index_from_right  # half of power
-        power = half * 2  # power of 2
-        return decimal % power < half
+        return (decimal >> index_from_right) & 1
 
     def find_solutions(self):
         variables = list(self.get_variables())
