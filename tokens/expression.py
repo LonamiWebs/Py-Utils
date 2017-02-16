@@ -40,7 +40,7 @@ class Expression(Token):
                 return ct.apply(pt.apply(solutions), nt.apply(solutions))
 
         # This expression should only have 1 token or it would not be well-formed…
-        return self.tokens[0].apply()
+        return self.tokens[0].apply(solutions)
 
     @staticmethod
     def _binary_digit(decimal, index_from_right):
