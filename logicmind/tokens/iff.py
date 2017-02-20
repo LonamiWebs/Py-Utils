@@ -5,7 +5,7 @@ class Iff(Token):
     representations = ['<->', '↔', '⇔', '≡']
 
     def __init__(self):
-        super().__init__(operands=2)
+        super().__init__(operands=2, precedence=5)
 
     def apply(self, left, right):
         return left == right

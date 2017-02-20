@@ -5,7 +5,7 @@ class Not(Token):
     representations = ['¬', '!']
 
     def __init__(self):
-        super().__init__(operands=1)
+        super().__init__(operands=1, precedence=1)
 
     def apply(self, right):
         return not right

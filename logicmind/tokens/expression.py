@@ -7,7 +7,7 @@ class Expression(Token):
        Order of tokens is not taken into account, and results are undefined if relied upon."""
 
     def __init__(self):
-        super().__init__(operands=0)
+        super().__init__(operands=0, precedence=0)
         self.tokens = []
 
     def add_token(self, token):

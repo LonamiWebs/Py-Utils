@@ -2,8 +2,12 @@ class Token:
     # Static variable holding all the representations for a given token
     representations = []
 
-    def __init__(self, operands):
+    def __init__(self, operands, precedence):
         # If operands = 0, it takes no operands, method should be apply(dict: solutions)
         # If operands = 1, it takes one operand, method should be apply(bool: rightExpr)
         # If operands = 2, it takes two operands, method should be apply(bool: leftExpr, bool: rightExpr)
         self.operands = operands
+
+        # The precendence (order) in which operators are applied
+        # The lower this number is, the sooner it will be applied
+        self.precedence = precedence
