@@ -21,28 +21,29 @@ class TokenParser:
         for s in ')]}':
             string = string.replace(s, ' ) ')
 
+        # Get all operators so we can iterate over them
+        operators = [Not, Then, Iff, Or, And]
+
         # Get all the tokens
         words = string.split()
 
+        # Store the found nested expressions on the stack
         expressions_stack = [Expression()]
-
         for w in words:
-            if w == '(':
+            done = False
+            for operator in operators:
+                if w in operator.representations:
+                    expressions_stack[-1].add_token(operator())
+                    done = True
+                    break
+
+            if done:
+                pass
+            elif w == '(':
                 expressions_stack.append(Expression())
             elif w == ')':
                 e = expressions_stack.pop()
                 expressions_stack[-1].add_token(e)
-
-            elif w == '¬':
-                expressions_stack[-1].add_token(Not())
-            elif w == '->':
-                expressions_stack[-1].add_token(Then())
-            elif w == '<->':
-                expressions_stack[-1].add_token(Iff())
-            elif w == 'v':
-                expressions_stack[-1].add_token(Or())
-            elif w == '^':
-                expressions_stack[-1].add_token(And())
 
             else:
                 expressions_stack[-1].add_token(Variable(w))
