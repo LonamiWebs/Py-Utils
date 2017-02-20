@@ -24,6 +24,13 @@ class TokenParser:
         # Get all operators so we can iterate over them
         operators = [Not, Then, Iff, Or, And]
 
+        # Find all the representations on the string and add surrounding spaces,
+        # this will allow us to call 'string.split()' to separate variable names
+        # from the operators so the user doesn't need to enter them separated
+        for operator in operators:
+            for representation in operator.representations:
+                string = string.replace(representation, ' '+representation+' ')
+
         # Get all the tokens
         words = string.split()
 
