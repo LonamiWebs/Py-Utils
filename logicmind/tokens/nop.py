@@ -2,6 +2,8 @@ from tokens.token import Token
 
 
 class Not(Token):
+    representations = ['¬', '!']
+
     def __init__(self):
         super().__init__(operands=1)
 

@@ -1,4 +1,7 @@
 class Token:
+    # Static variable holding all the representations for a given token
+    representations = []
+
     def __init__(self, operands):
         # If operands = 0, it takes no operands, method should be apply(dict: solutions)
         # If operands = 1, it takes one operand, method should be apply(bool: rightExpr)
