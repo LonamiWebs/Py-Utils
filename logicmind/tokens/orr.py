@@ -4,6 +4,8 @@ from tokens.token import Token
 class Or(Token):
     representations = ['v', '∨']
 
+    single_char_representation = '∨'
+
     def __init__(self):
         super().__init__(operands=2, precedence=3)
 
