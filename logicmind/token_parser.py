@@ -1,6 +1,8 @@
 from tokens.andd import And
 from tokens.expression import Expression
 from tokens.iff import Iff
+from tokens.kfalse import ConstantFalse
+from tokens.ktrue import ConstantTrue
 from tokens.nop import Not
 from tokens.orr import Or
 from tokens.then import Then
@@ -34,7 +36,7 @@ class TokenParser:
         # Another way would be to iterate over the string and finding the tokens. Once
         # identified, they'd be put, in order, on a different list. However, this is
         # not as simple as the currently used approach.
-        operators = [Iff, Then, Not, Or, And]
+        operators = [Iff, Then, Not, Or, And, ConstantTrue, ConstantFalse]
 
         # Find all the representations on the string and add surrounding spaces,
         # this will allow us to call 'string.split()' to separate variable names
