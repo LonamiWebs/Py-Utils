@@ -55,4 +55,8 @@ class TokenParser:
             else:
                 expressions_stack[-1].add_token(Variable(w))
 
+        # Tokenize the top expression (this will also tokenize its children)
+        expressions_stack[0].tokenize()
+
+        # Return the top expression once it's completely valid
         return expressions_stack[0]

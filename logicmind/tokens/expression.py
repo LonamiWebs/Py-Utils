@@ -13,6 +13,59 @@ class Expression(Token):
     def add_token(self, token):
         self.tokens.append(token)
 
+    def tokenize(self):
+        # Tokenize the expression to be valid, for example, converts:
+        #   (variable operator operator variable)
+        # to
+        #   (variable operator (operator variable))
+        #
+        # Another possible solution would be to apply the operators in order
+        # once we're solving the expression, however, this would provide no
+        # insight to the user on the real order that it's being applied.
+        #
+        # First check whether it's already valid or not (count operators, there must be one)
+        # Store the index and their precedence as a tuple (index, precedence)
+        operators_at = []
+        for i in range(len(self.tokens)):
+            if self.tokens[i].operands > 0:
+                operators_at.append((i, self.tokens[i].precedence))
+
+        # There is only one operator (or none at all), there is no trouble
+        if len(operators_at) < 2:
+            # However, we need to make sure that the inner expressions are also valid
+            for t in self.tokens:
+                if isinstance(t, Expression):
+                    t.tokenize()
+
+            # Early terminate, this one is valid
+            return
+
+        # Find the one with the lowest precedence and tokenize it, one at a time
+        lowest_at = min(operators_at, key=lambda t: t[1])[0]
+
+        # Find the starting token index that will be grouped (one behind if it takes 2 operators)
+        # And also how many tokens we'll be replacing (3 if it takes 2 operators, 'left op right')
+        # For example:
+        #   'q ^ p -> ¬p' it would choose at '¬' and take 2 tokens (end + 2)
+        #   'q ^ p ->  p' it would choose at '^' and take 3 tokens (start -1, before the operator, end + 2)
+        if self.tokens[lowest_at].operands == 2:
+            start = lowest_at - 1
+            end = start + 3
+        else:
+            start = lowest_at
+            end = start + 2
+
+        # Add the involved tokens to the grouped expression
+        group = Expression()
+        for t in self.tokens[start:end]:
+            group.add_token(t)
+
+        # Replace these with the new grouped expression
+        self.tokens[start:end] = [group]
+
+        # Repeat until the expression is valid and there is no need to tokenize more
+        self.tokenize()
+
     def get_variables(self):
         variables = set()
 
