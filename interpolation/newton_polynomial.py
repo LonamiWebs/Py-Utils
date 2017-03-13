@@ -134,8 +134,15 @@ def f(s, e):
         return nonbase
 
 
-def p(g):
-    """Returns the polynomial of degree g"""
+def p(sequence, g=None):
+    """Returns the polynomial from the given sequence.
+       If no degree g is specified, the degree = `len(sequence)-1` is used"""
+    if not sequence:
+        raise ValueError('Cannot retrieve the polynomial of an empty sequence')
+    
+    if g is None:
+        g = len(sequence) - 1
+    
     # The polynomial p_i was defined is follows:
     # p_i(x) = p_i-1(x)          + f_i(x₀, …, x_i) * (x * (x-1) * … * (x-i+1))
     #          ^ previous degree + ^ slope for i     ^ preserving previous state
@@ -146,23 +153,20 @@ def p(g):
         # Why is it the first case? Because it satisfies the first term
         # of the sequence when no `x` is actually involved. Once again,
         # we don't need the actual value of the `x` really because it's x⁰ = 1.
-        def base(x, seq):
+        def base(x):
             """Base case p₀ (the first value of the sequence)"""
-            if not seq:
-                raise ValueError('Cannot retrieve the value from the polynomial'
-                                +' with degree 0 if the sequence is empty')
-            return seq[0]
+            return sequence[0]
         
         return base
     else:
-        def nonbase(x, seq):
+        def nonbase(x):
             """Non-base case p_i (polynomial function)"""
             # It's defined as the previous polynomial plus…
-            prev_p = p(g - 1)
+            prev_p = p(sequence, g - 1)
             
             # …the slope of this grade (starting on the sequence)…
             f_g = f(0, g)
-            slope = f_g(seq)
+            slope = f_g(sequence)
             
             # …which is multiplied by `x*(x-1)*…*(x-i+1)` to keep the old state
             for i in range(g):
@@ -170,7 +174,7 @@ def p(g):
                 slope *= (x - i)
             
             # And there we have it!
-            return prev_p(x, seq) + slope
+            return prev_p(x) + slope
         
         return nonbase
 
@@ -191,9 +195,9 @@ class InterpolationTests(unittest.TestCase):
     
     def test_polynomial_guess(self):
         # The polynomial should return the same value as the original sequence
-        p3 = p(3)
+        p3 = p(self.sequence)
         for i in range(len(self.sequence)):
-            self.assertEqual(p3(i, self.sequence), self.sequence[i])
+            self.assertEqual(p3(i), self.sequence[i])
 
 
 if __name__ == '__main__':
