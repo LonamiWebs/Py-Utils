@@ -104,19 +104,25 @@ def solve_seq(s):
     """Attempts to solve the sequence 's' by finding its next item.
        This method won't only try a single operation to create the
        subsequent sequences tree, but a combination of many of them.
-       Namely, it will use a combination of subtraction and division"""
+       
+       Namely, it will use a combination of differences, division,
+       and flipping (positive → negative if non-zero and vice-versa)"""
     sub = lambda a, b: b -  a
     add = lambda a, b: b +  a
     div = lambda a, b: b // a
     mul = lambda a, b: b *  a
+    flip = lambda a, b: -a if a else -b  # If a is 0, then flip b
     
     # The order should remain the same or this function is broken
-    allops = itertools.product([sub, div], repeat=len(s)-1)
-    allinvs = itertools.product([add, mul], repeat=len(s)-1)
+    allops = itertools.product([sub, div, flip], repeat=len(s)-1)
+    allinvs = itertools.product([add, mul, flip], repeat=len(s)-1)
     
     solutions = set()
     for ops, invs in zip(allops, allinvs):
-        solutions.add(next_item(s, ops, invs))
+        try:
+            solutions.add(next_item(s, ops, invs))
+        except ZeroDivisionError:
+            "OK, invalid solution :)"
     
     return solutions
 
