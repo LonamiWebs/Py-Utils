@@ -1,6 +1,10 @@
 #!/usr/bin/python3.6
 
 
+import itertools
+from collections import Iterable
+
+
 def is_constant(s):
     """Determines whether the sequence 's' is constant,
        effectively returning 'true' if 's[i] == s[0]'"""
@@ -34,7 +38,7 @@ def get_subseqs(s, ops):
         # We can't get the next sequence based on two terms if there's only one
         return []
     
-    if not isinstance(ops, list):
+    if not isinstance(ops, Iterable):
         ops = [ops for _ in range(len(s)-1)]
     
     # Start with the initial subsequence
@@ -82,20 +86,42 @@ def nextitem(s, ops, invops):
     r = ss[-1][-1]
     
     # Ensure we have a list of inverse operations
-    if not isinstance(invops, list):
+    if not isinstance(invops, Iterable):
         invops = [invops for _ in range(len(s)-1)]
     
     # We need to chain this result to the previous ones
     # Range of invops: end....1
     # Range of subseq: end-1..0
-    for i in range(len(ss)-1, 0, -1):
+    for i in reversed(range(1, len(ss))):
         r = invops[i](ss[i-1][-1], r)
     
     # Now we have the accumulated inverse operation
     return invops[0](s[-1], r)
 
 
+def solve_seq(s):
+    """Attempts to solve the sequence 's' by finding its next item.
+       This method won't only try a single operation to create the
+       subsequent sequences tree, but a combination of many of them.
+       Namely, it will use a combination of subtraction and division"""
+    sub = lambda a, b: b -  a
+    add = lambda a, b: b +  a
+    div = lambda a, b: b // a
+    mul = lambda a, b: b *  a
+    
+    # The order should remain the same or this function is broken
+    allops = itertools.product([sub, div], repeat=len(s)-1)
+    allinvs = itertools.product([add, mul], repeat=len(s)-1)
+    
+    solutions = set()
+    for ops, invs in zip(allops, allinvs):
+        solutions.add(nextitem(s, ops, invs))
+    
+    return solutions
+
+
 if __name__ == '__main__':
+    """
     seq = [6, 9, 2, 5]
     # Using a difference table
     diff  = lambda a, b: b - a
@@ -149,3 +175,8 @@ if __name__ == '__main__':
         
         printtree(seq, subseq)
         print()
+    """
+    seq = [1, 2, 6, 24]
+    sol = solve_seq(seq)
+    print(f'Possible solutions for {seq}:\n{", ".join([str(s) for s in sol])}')
+    
