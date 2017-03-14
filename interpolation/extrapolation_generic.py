@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 
 
+import unittest
 import itertools
 from collections import Iterable
 
@@ -73,7 +74,7 @@ def printtree(s, ss):
         print(' '.join([str(n).center(pad) for n in ss[i]]))
 
 
-def nextitem(s, ops, invops):
+def next_item(s, ops, invops):
     """Tries to guess the next item on the sequence 's' by using a table
        of (ops). This method will fail if the sequence doesn't provide enough
        information, and will assume that the latest sequence should remain
@@ -115,68 +116,71 @@ def solve_seq(s):
     
     solutions = set()
     for ops, invs in zip(allops, allinvs):
-        solutions.add(nextitem(s, ops, invs))
+        solutions.add(next_item(s, ops, invs))
     
     return solutions
 
 
+class ExtrapolationTests(unittest.TestCase):
+    def test_difference_table(self):
+        # Using a difference table
+        diff  = lambda a, b: b - a
+        diffi = lambda a, b: b + a
+        
+        seq1 = [6, 9, 2, 5]  # Random, shouldn't converge
+        seq2 = [1, 2, 4, 7]  # +1, +2, +3…
+        
+        self.assertEqual(next_item(seq1, diff, diffi), 38)
+        self.assertEqual(next_item(seq2, diff, diffi), 11)
+    
+    def test_division_table(self):
+        # Using a division table
+        div  = lambda a, b: b // a
+        divi = lambda a, b: b  * a
+    
+        seq1 = [1, 2, 4, 8]  # ×2
+        seq2 = [1,  2,  8,  64]
+        #         ×2  ×4  ×8
+        #           ×2  ×2
+        
+        self.assertEqual(next_item(seq1, div, divi), 16)
+        self.assertEqual(next_item(seq2, div, divi), 1024)
+    
+    def test_combined_table(self):
+        sub = lambda a, b: b -  a
+        add = lambda a, b: b +  a
+        div = lambda a, b: b // a
+        mul = lambda a, b: b *  a
+        
+        seq = [1, 2, 6, 24]  # ×2, ×3, ×4…
+        self.assertEqual(next_item(seq, [div, sub], [mul, add]), 120)
+    
+    def test_find_solutions(self):
+        seq = [1, 2, 6, 24]
+        sol = solve_seq(seq)
+        self.assertEqual(sol, {67, 96, 98, 120})
+
+
 if __name__ == '__main__':
-    """
-    seq = [6, 9, 2, 5]
-    # Using a difference table
+    # Using division, then difference
     diff  = lambda a, b: b - a
     diffi = lambda a, b: b + a
-    
-    subseq = get_subseqs(seq, diff)
-    printtree(seq, subseq)
-    
-    print(f'\nNext 2 items of {seq}:')
-    for i in range(2):
-        seq.append(nextitem(seq, diff, diffi))
-        subseq = get_subseqs(seq, diff)
-        
-        printtree(seq, subseq)
-        print()
-    
-    print('-' * 80)
-    print()
-    
-    seq = [1, 2, 8, 64]
-    # Using a division table
-    div  = lambda a, b: b // a
-    divi = lambda a, b: b  * a
-    
-    subseq = get_subseqs(seq, diff)
-    printtree(seq, subseq)
-    
-    print(f'\nNext 2 items of {seq}:')
-    for i in range(2):
-        seq.append(nextitem(seq, div, divi))
-        subseq = get_subseqs(seq, div)
-        
-        printtree(seq, subseq)
-        print()
-    
-    print('-' * 80)
-    print()
-    
-    seq = [1, 2, 6, 24]
-    # Using division, then difference
-    ops = [div, diff]
+    div   = lambda a, b: b // a
+    divi  = lambda a, b: b  * a
+    ops    = [div, diff]
     invops = [divi, diffi]
     
+    seq = [1, 2, 6, 24]
     subseq = get_subseqs(seq, ops)
+    
+    print(f'Tree for {seq}:')
     printtree(seq, subseq)
     
-    print(f'\nNext 2 items of {seq}:')
+    print(f'\nNext 2 items for {seq}:')
     for i in range(2):
-        seq.append(nextitem(seq, ops, invops))
+        seq.append(next_item(seq, ops, invops))
         subseq = get_subseqs(seq, ops)
-        
         printtree(seq, subseq)
         print()
-    """
-    seq = [1, 2, 6, 24]
-    sol = solve_seq(seq)
-    print(f'Possible solutions for {seq}:\n{", ".join([str(s) for s in sol])}')
     
+    unittest.main()
