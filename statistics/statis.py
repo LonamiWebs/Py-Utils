@@ -1,4 +1,4 @@
-from math import factorial
+from math import factorial, exp
 
 
 def perm(n):
@@ -91,6 +91,26 @@ def dgeom(p):
   # Allow accessing the used 'p' value from the function
   g.__dict__['p'] = p
   return g
+
+
+def dpois(lmbda):
+  """Poisson Distribution
+     lmbda = average number of successes per unit interval
+
+     Used to determine the probability of an amount of
+     successes occuring in a fixed interval (time, area…)
+
+     This doesn't return a value, but rather the specified Poisson function
+  """
+  def p(k):
+    if 0 <= k:
+      return (exp(-lmbda) * lmbda**k) / factorial(k)
+    else:
+      return 0
+
+  # Allow accessing the used 'lmbda' value from the function
+  p.__dict__['lmbda'] = lmbda
+  return p
 
 
 def hist(f, n, height=20, c='│'):
