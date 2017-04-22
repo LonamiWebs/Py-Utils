@@ -52,16 +52,45 @@ def dbinom(n, p):
      p = success probability
 
      Used when a certain experiment is repeated n times
-     with a 0 ≤ P ≤ 1 probability to succeed.
+     with a 0 ≤ P ≤ 1 probability to succeed once.
 
      This doesn't return a value, but rather the specified binomial function
   """
   def b(k):
-    q = 1 - p
-    return rperm(n, k) * p**k * q**(n-k)
+    """Returns the probability of k successes"""
+    if 0 <= k <= n:
+        q = 1 - p
+        return rperm(n, k) * p**k * q**(n-k)
+    else:
+        return 0
+
+  # Allow accessing the used 'n' and 'p' values from the function
   b.__dict__['n'] = n
   b.__dict__['p'] = p
   return b
+
+
+def dgeom(p):
+  """Geometric Distribution
+     p = success probability
+
+     Used to determine the probability of a success
+     appearing at a given time, with a 0 ≤ P ≤ 1
+     probability to succeed once.
+
+     This doesn't return a value, but rather the specified geometric function
+  """
+  def g(k):
+    """Returns the probability that the first success is the k'th success"""
+    if 0 < k:
+        q = 1 - p
+        return q**(k-1) * p
+    else:
+        return 0
+
+  # Allow accessing the used 'p' value from the function
+  g.__dict__['p'] = p
+  return g
 
 
 def hist(f, n, height=20, c='│'):
@@ -83,7 +112,7 @@ def hist(f, n, height=20, c='│'):
   # Always append the highest value so its represented
   steps.append(ymax)
 
-  # We print the console from above
+  # We print to the console from above
   for s in reversed(steps):
     print('%04.1f' % (100 * s), end='% ')
 
