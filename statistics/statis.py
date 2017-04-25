@@ -5,7 +5,7 @@ def perm(n):
   """Permutations
      n = number of elements
 
-     Number of ways are to rearrange n elements
+     Number of ways there are to rearrange n elements
   """
   return factorial(n)
 
@@ -21,7 +21,7 @@ def rperm(n, k):
      Also known as ⎛n⎞
      "n choose k": ⎝k⎠
   """
-  return perm(n) / (perm(k) * perm(n-k))
+  return factorial(n) / (factorial(k) * factorial(n-k))
 
 
 def vari(n, k):
@@ -32,7 +32,7 @@ def vari(n, k):
      On n positions, k elements are chosen (order matters).
      For instance, n = 7, k = 3: '__1_32_'
   """
-  return rperm(n, k) * rperm(k)
+  return factorial(n) / factorial(n-k)
 
 
 def rvari(n, k):
@@ -44,6 +44,31 @@ def rvari(n, k):
      For instance, n = 7, k = 3: '_3__31_'
   """
   return n ** k
+
+
+def combs(n, k):
+    """Combinations
+       n = total number of elements
+       k = number of elements chosen
+
+       Number of possible groups with k elements from n elements,
+       and the order doesn't matter.
+
+       Also known as ⎛n⎞
+       "n choose k": ⎝k⎠
+    """
+    return factorial(n) / (factorial(k) * factorial(n-k))
+
+
+def rcombs(n, k):
+    """Combinations (allowing repetition)
+       n = total number of elements
+       k = number of elements chosen
+
+       Number of possible groups with k elements from n elements,
+       and the order doesn't matter.
+    """
+    return factorial(n+k-1) / (factorial(k) * factorial(n-k))
 
 
 def dbinom(n, p):
