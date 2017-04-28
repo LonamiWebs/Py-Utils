@@ -10,18 +10,18 @@ def perm(n):
   return factorial(n)
 
 
-def rperm(n, k):
+def rperm(n, *ks):
   """Permutations (allowing repetition)
      n = total number of elements
-     k = number of elements chosen
+     ks = how many times the first, second, etc, element repeats
 
-     On n positions, k elements are chosen (order doesn't matter).
-     For instance, n = 7, k = 3: '_X__XX_'
-
-     Also known as ⎛n⎞
-     "n choose k": ⎝k⎠
+     Number of ways there are to rearrange n elements,
+     with some repeated
   """
-  return factorial(n) / (factorial(k) * factorial(n-k))
+  divisor = 1
+  for k in ks:
+    divisor *= k
+  return perm(n) / divisor
 
 
 def vari(n, k):
