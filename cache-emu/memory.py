@@ -142,7 +142,7 @@ def plot_ways(policy='lru'):
         return
     
     fig, ax = plt.subplots()
-    refs = '1 4 8 5 20 17 19 56 9 11 4 43 5 6 9 17 181'
+    refs = '1 65 129 193 1 129 1 65 129 1 1 65 129 129'
     psize = 4
     partc = 16
     
@@ -176,7 +176,7 @@ def plot_psize():
         return
     
     fig, ax = plt.subplots()
-    refs = '6,214,175,214,6,84,65,174,64,105,85,215'
+    refs = '1 4 8 5 20 17 19 56 9 11 4 43 5 6 9 17 181'
     psize = 1
     partc = 16
     
@@ -207,3 +207,4 @@ def plot_psize():
 
 if __name__ == '__main__':
     plot_psize()
+    plot_ways()
