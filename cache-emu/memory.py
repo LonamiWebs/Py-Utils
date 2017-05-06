@@ -9,15 +9,16 @@ except:
 
 
 class Cache:
-    def __init__(self, psize, partc, ways=1, policy=None):
-        """psize = partition size (word count)
-           partc = partition count
-           ways  = 'partc/ways' blocks, with 'ways' blocks each
-                 |= 1     : direct mapping
-                 |= partc : fully associative
-                 |= n     : partially associative (needs 'policy')
+    def __init__(self, partition_size, partitions, ways=1, policy=None):
+        """partition_size = partition size in words
+           partitions     = number of partitions
+           ways.          = number of way (associativity degree)
+               |            There are 'partitions/ways' sets
+               |= 1     : direct mapping
+               |= n     : partially associative (needs 'policy')
+               |= else  : fully associative
 
-           policy = access policy
+           policy = access policy when 'ways' ≠ 1, 'partitions'
                   |= 'lfu'  : Least Frequently Used
                   |= 'lru'  : Least Recently Used
                   |= 'fifo' : First In, First Out
@@ -28,12 +29,12 @@ class Cache:
         if policy not in [None, 'lfu', 'lru', 'fifo']:
             raise ValueError('Unknown policy given: '+policy)
         
-        self.psize  = psize
-        self.partc  = partc
-        self.ways   = ways
-        self.blockc = partc // ways
-        self.valid  = [False] * partc
-        self.tags   = [0] * partc
+        self.partition_size = partition_size
+        self.partitions = partitions
+        self.ways = ways
+        self.sets = partitions // ways
+        self.valid = [False] * partitions
+        self.tags = [0] * partitions
         self.policy = policy
         
         # Stats
@@ -41,19 +42,23 @@ class Cache:
         self.hits = 0
         
         # Policy related
-        self.usecount  = [0] * partc  # 'lfu'
-        self.lasttime  = [0] * partc  # 'lru'
-        self.firsttime = [0] * partc  # 'fifo'
+        self.usecount  = [0] * partitions  # 'lfu'
+        self.lasttime  = [0] * partitions  # 'lru'
+        self.firsttime = [0] * partitions  # 'fifo'
     
     def access(self, ref, show=False):
-        # Offset, tag and block index
-        m, o = divmod(ref, self.psize)
-        t, b = divmod(m, self.blockc)
+        # Offset, tag and set indexs
+        m, o = divmod(ref, self.partition_size)
+        t, s = divmod(m, self.sets)
         # Determine the tags and validity of the available ways
-        # For the case of 1 way, we will be chosing always a single way
-        # For the case of 'partc' ways, we will be choosing all of them
-        # For any other case, we will only choose a part
-        start = b   * self.ways  # Block index, each of 'ways' ways
+        # For the case of 1 way, we will be choosing always a single way
+        #     Also known as 'partitions' sets
+        #
+        # For the case of 'partitions' ways, we will be choosing all of them
+        #     Also known as 1 single set
+        #
+        # For any other case, we will only choose a specific set
+        start = s   * self.ways  # Set index, each of 'ways' ways
         end = start + self.ways  # Next way end
         
         # Slice everything to work on a local copy
@@ -72,45 +77,60 @@ class Cache:
         if t in wtags and wvalid[wtags.index(t)]:
             # Hit
             self.hits += 1
-            tag_at = wtags.index(t)
-            wusecount[tag_at] += 1
-            wlasttime[tag_at]  = 0
+            way = wtags.index(t)
+            wusecount[way] += 1
+            wlasttime[way]  = 0
             #  wfirsttime is the same
             if show:
-                print('Hit for {} at block {}[{}], offset {}'
-                      .format(ref, b, tag_at, o))
+                if self.ways == 1:
+                    print('Hit for {} at partition {}, word offset {}'
+                          .format(ref, s, o))
+                elif self.ways == self.partitions:
+                    print('Hit for {} at way {}, word offset {}'
+                          .format(ref, s, o))
+                else:
+                    print('Hit for {} on set {} at way {}, word offset {}'
+                          .format(ref, s, way, o))
         else:
             # Miss
             self.misses += 1
             if self.ways == 1:
                 # Single way, no choice
-                tag_at = 0
+                reason = None
+                way = 0
             
             elif self.policy == 'lfu':
                 # Least Frequently Used, where wusecount is minimum
-                tag_at = \
-                    min(range(len(wusecount)), key=wusecount.__getitem__)
+                way = min(range(len(wusecount)), key=wusecount.__getitem__)
+                reason = 'it was only used {} times'.format(wusecount[way])
             
             elif self.policy == 'lru':
                 # Least Recently Used, where wlasttime is maximum
-                tag_at = \
-                    max(range(len(wlasttime)), key=wlasttime.__getitem__)
+                way = max(range(len(wlasttime)), key=wlasttime.__getitem__)
+                reason = 'it was last used {}t ago'.format(wlasttime[way])
             
             elif self.policy == 'fifo':
                 # First In, First Out, where wfirsttime is maximum
-                tag_at = \
-                    max(range(len(wfirsttime)), key=wfirsttime.__getitem__)
+                way = max(range(len(wfirsttime)), key=wfirsttime.__getitem__)
+                reason = 'it was first added at {}t'.format(wfirsttime[way])
             
             if show:
-                print('Miss for {} at block {}, using way {}[{}]'
-                      .format(ref, b, tag_at, o))
-            wtags[tag_at] = t
-            wvalid[tag_at] = True
+                if self.ways == 1:
+                    print('Miss for {}, using partition {}, word offset {}'
+                          .format(ref, s, o))
+                elif self.ways == self.partitions:
+                    print('Miss for {}, using way {} because {}, word offset {}'
+                          .format(ref, way, reason, o))
+                else:
+                    print('Miss for {} on set {} using way {} because {}, '
+                          'word offset {}'.format(ref, s, way, reason, o))
+            wtags[way] = t
+            wvalid[way] = True
             
             # Reset everything (first use, last and first time now)
-            wusecount[tag_at]  = 1
-            wlasttime[tag_at]  = 0
-            wfirsttime[tag_at] = 0
+            wusecount[way]  = 1
+            wlasttime[way]  = 0
+            wfirsttime[way] = 0
         
         self.tags[start:end] = wtags
         self.valid[start:end] = wvalid
@@ -131,10 +151,10 @@ class Cache:
             self.access(r, show=show)
     
     def __str__(self):
-        return '(Cache(partitions={}, size={}, ways={}, ' \
+        return '(Cache(partitions={}, size={}, sets={}, ways={}, ' \
                'hits={}, misses={}, policy="{}"))' \
-               .format(self.partc, self.psize, self.ways,
-                       self.hits, self.misses, self.policy)
+               .format(self.partitions, self.partition_size, self.sets,
+                       self.ways, self.hits, self.misses, self.policy)
 
 def plot_ways(policy='lru'):
     if np is None or plt is None:
