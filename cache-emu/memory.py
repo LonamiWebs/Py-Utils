@@ -33,20 +33,11 @@ class Cache:
         self.partitions = partitions
         self.ways = ways
         self.sets = partitions // ways
-        self.valid = [False] * partitions
-        self.tags = [0] * partitions
         self.policy = policy
-        
-        # Stats
-        self.misses = 0
-        self.hits = 0
-        
-        # Policy related
-        self.usecount  = [0] * partitions  # 'lfu'
-        self.lasttime  = [0] * partitions  # 'lru'
-        self.firsttime = [0] * partitions  # 'fifo'
+        self.reset()
     
     def access(self, ref, show=False):
+        """Accesses a single reference on the main memory"""
         # Offset, tag and set indexs
         m, o = divmod(ref, self.partition_size)
         t, s = divmod(m, self.sets)
@@ -139,6 +130,9 @@ class Cache:
         self.firsttime[start:end] = wfirsttime
     
     def access_all(self, refs, show=False):
+        """Accesses all the references (either a list, or a
+           string, comma, semicolon, or space separated values)
+        """
         if isinstance(refs, str):
             if ',' in refs:
                 refs = [int(s.strip()) for s in refs.split(',')]
@@ -149,6 +143,20 @@ class Cache:
         
         for r in refs:
             self.access(r, show=show)
+    
+    def reset(self):
+        """Resets the status of the cache"""
+        self.valid = [False] * self.partitions
+        self.tags = [0] * self.partitions
+        
+        # Stats
+        self.misses = 0
+        self.hits = 0
+        
+        # Policy related
+        self.usecount  = [0] * self.partitions  # 'lfu'
+        self.lasttime  = [0] * self.partitions  # 'lru'
+        self.firsttime = [0] * self.partitions  # 'fifo'
     
     def __str__(self):
         return '(Cache(partitions={}, size={}, sets={}, ways={}, ' \
