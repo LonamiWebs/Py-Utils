@@ -8,6 +8,57 @@ except:
     plt = None
 
 
+class ListView:
+    """Similar to memoryview(bytes_buffer), but for any list"""
+    def __init__(self, lst, start=None, end=None):
+        self.lst = lst
+        self.move(start, end)
+    
+    def move(self, start, end):
+        self.start = 0 if start is None else max(start, 0)
+        self.end = len(self.lst) if end is None else min(end, len(self.lst))
+    
+    def __iter__(self):
+        for i in range(self.start, self.end):
+            yield self.lst[i]
+    
+    def __len__(self):
+        return self.end - self.start
+    
+    def __contains__(self, x):
+        for i in range(self.start, self.end):
+            if self.lst[i] == x:
+                return True
+        return False
+    
+    def _getindex(self, key):
+        i = self.end + key if key < 0 else self.start + key
+        if self.start <= i < self.end:
+            return i
+        
+        raise IndexError('list index out of range')
+    
+    def __getitem__(self, key):
+        return self.lst[self._getindex(key)]
+    
+    def __setitem__(self, key, value):
+        self.lst[self._getindex(key)] = value
+    
+    def __str__(self):
+        return str(self.lst[self.start:self.end])
+    
+    def __repr__(self):
+        return repr(self.lst[self.start:self.end])
+    
+    def index(self, value):
+        for i in range(self.start, self.end):
+            if self.lst[i] == value:
+                return i - self.start
+        
+        raise ValueError('{} is not in list'.format(value))
+        
+
+
 class Cache:
     def __init__(self, partition_size, partitions, ways=1, policy=None):
         """partition_size = partition size in words
@@ -53,12 +104,11 @@ class Cache:
         end = start + self.ways  # Next way end
         
         # Slice everything to work on a local copy
-        # TODO There has to be a better way to work on local copies
-        wtags = self.tags[start:end]
-        wvalid = self.valid[start:end]
-        wusecount = self.usecount[start:end]
-        wlasttime = self.lasttime[start:end]
-        wfirsttime = self.firsttime[start:end]
+        wtags = ListView(self.tags, start, end)
+        wvalid = ListView(self.valid, start, end)
+        wusecount = ListView(self.usecount, start, end)
+        wlasttime = ListView(self.lasttime, start, end)
+        wfirsttime = ListView(self.firsttime, start, end)
         
         # Everything in the cache just got older
         for i in range(self.ways):
@@ -122,12 +172,6 @@ class Cache:
             wusecount[way]  = 1
             wlasttime[way]  = 0
             wfirsttime[way] = 0
-        
-        self.tags[start:end] = wtags
-        self.valid[start:end] = wvalid
-        self.usecount[start:end] = wusecount
-        self.lasttime[start:end] = wlasttime
-        self.firsttime[start:end] = wfirsttime
     
     def access_all(self, refs, show=False):
         """Accesses all the references (either a list, or a
