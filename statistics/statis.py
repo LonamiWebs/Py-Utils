@@ -117,8 +117,8 @@ def dgeom(p):
 
   # Allow accessing the used 'p' value from the function
   g.__dict__['p'] = p
-  b.__dict__['expected'] = 1 / p
-  b.__dict__['variance'] = (1-p) / (p**2)
+  g.__dict__['expected'] = 1 / p
+  g.__dict__['variance'] = (1-p) / (p**2)
   return g
 
 
@@ -139,8 +139,8 @@ def dpois(lmbda):
 
   # Allow accessing the used 'lmbda' value from the function
   p.__dict__['lmbda'] = lmbda
-  b.__dict__['expected'] = lmbda
-  b.__dict__['variance'] = lmbda
+  p.__dict__['expected'] = lmbda
+  p.__dict__['variance'] = lmbda
   return p
 
 
