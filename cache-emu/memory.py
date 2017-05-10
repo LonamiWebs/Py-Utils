@@ -241,6 +241,13 @@ class Cache:
                'hits={}, misses={}, policy="{}"))' \
                .format(self.partitions, self.partition_size, self.sets,
                        self.ways, self.hits, self.misses, self.policy)
+    
+    def content_of(self, partition):
+        """Returns the contents of a given partition index"""
+        if self.valid[partition]:
+            start = partition * self.partition_size
+            return '{}-{}'.format(start, start + self.partition_size - 1)
+        return ''
 
     def draw(self, show_partition=True, show_content=True, show_way=True):
         partition_padding = len(str(self.partitions - 1))
@@ -261,14 +268,7 @@ class Cache:
                 items.append(str(i).rjust(partition_padding))
             
             if show_content:
-                # (Starting word-ending word).padded
-                if self.valid[i]:
-                    content = (str( i    * self.partition_size) + '-' +
-                               str((i+1) * self.partition_size - 1))\
-                               .center(content_padding)
-                else:
-                    content = ' ' * content_padding
-                
+                content = self.content_of(i).center(content_padding)
                 hit, at = self.last_access
                 if colorama and i == at:
                     if hit:
