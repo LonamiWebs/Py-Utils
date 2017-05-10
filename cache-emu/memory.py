@@ -1,11 +1,19 @@
 #!/usr/bin/python3
 
+import time
+
+
 try:
     import numpy as np
     import matplotlib.pyplot as plt
-except:
+except ImportError:
     np = None
     plt = None
+
+try:
+    import colorama
+except ImportError:
+    colorama = None
 
 
 class ListView:
@@ -56,7 +64,9 @@ class ListView:
                 return i - self.start
         
         raise ValueError('{} is not in list'.format(value))
-        
+    
+    def original(self, index):
+        return self.start + index
 
 
 class Cache:
@@ -87,7 +97,8 @@ class Cache:
         self.policy = policy
         self.reset()
     
-    def access(self, ref, show=False):
+    def access(self, ref, show=False, draw=False,
+               delay=0, delay_hit=None, delay_miss=None):
         """Accesses a single reference on the main memory"""
         # Offset, tag and set indexs
         m, o = divmod(ref, self.partition_size)
@@ -122,6 +133,9 @@ class Cache:
             wusecount[way] += 1
             wlasttime[way]  = 0
             #  wfirsttime is the same
+            #
+            # Hit, at position (original index)
+            self.last_access = True, wtags.original(t)
             if show:
                 if self.ways == 1:
                     print('Hit for {} at partition {}, word offset {}'
@@ -172,8 +186,24 @@ class Cache:
             wusecount[way]  = 1
             wlasttime[way]  = 0
             wfirsttime[way] = 0
+            # Miss, at position (original index)
+            self.last_access = False, wtags.original(way)
+        
+        if draw:
+            self.draw()
+            print(' -> Accessed word', ref, '-',
+                  self.hits, 'hits and', self.misses, 'misses')
+        
+        hit, _ = self.last_access
+        if hit and delay_hit:
+            time.sleep(delay_hit)
+        elif not hit and delay_miss:
+            time.sleep(delay_miss)
+        elif delay:
+            time.sleep(delay)
     
-    def access_all(self, refs, show=False):
+    def access_all(self, refs, show=False, draw=False,
+                   delay=0, delay_hit=None, delay_miss=None):
         """Accesses all the references (either a list, or a
            string, comma, semicolon, or space separated values)
         """
@@ -186,7 +216,8 @@ class Cache:
                 refs = [int(s) for s in refs.split()]
         
         for r in refs:
-            self.access(r, show=show)
+            self.access(r, show=show, draw=draw, delay=delay,
+                        delay_hit=delay_hit, delay_miss=delay_miss)
     
     def reset(self):
         """Resets the status of the cache"""
@@ -196,6 +227,9 @@ class Cache:
         # Stats
         self.misses = 0
         self.hits = 0
+        
+        # Was hit? At which partition? (tuple)
+        self.last_access = None, None
         
         # Policy related
         self.usecount  = [0] * self.partitions  # 'lfu'
@@ -207,6 +241,90 @@ class Cache:
                'hits={}, misses={}, policy="{}"))' \
                .format(self.partitions, self.partition_size, self.sets,
                        self.ways, self.hits, self.misses, self.policy)
+
+    def draw(self, show_partition=True, show_content=True, show_way=True):
+        partition_padding = len(str(self.partitions - 1))
+        ways_padding = len(str(self.ways - 1))
+        content_padding = max(
+            # len(largest) + len('-') + len(largest)
+            1 + 2*len(str(self.partitions * self.partition_size)),
+            len('Content')
+        )
+        
+        # Resulting items will be spread accross many lines
+        lines = []
+        
+        # All the partitions in the cache
+        for i in range(self.partitions):
+            items = []
+            if show_partition:
+                items.append(str(i).rjust(partition_padding))
+            
+            if show_content:
+                # (Starting word-ending word).padded
+                if self.valid[i]:
+                    content = (str( i    * self.partition_size) + '-' +
+                               str((i+1) * self.partition_size - 1))\
+                               .center(content_padding)
+                else:
+                    content = ' ' * content_padding
+                
+                hit, at = self.last_access
+                if colorama and i == at:
+                    if hit:
+                        items.append(colorama.Back.GREEN +
+                                     content +
+                                     colorama.Style.RESET_ALL)
+                    else:
+                        items.append(colorama.Back.RED +
+                                     content +
+                                     colorama.Style.RESET_ALL)
+                else:
+                    items.append(content)
+            
+            if show_way:
+                items.append(str(i % self.ways).ljust(partition_padding))
+            
+            lines.append(items)
+        
+        # Then the column headers
+        items = []
+        if show_partition:
+            items.append('P'.rjust(partition_padding))
+        
+        if show_content:
+            items.append('Content'.center(content_padding))
+        
+        if show_way:
+            items.append('W'.ljust(partition_padding))
+        lines.append(items)
+        
+        # Header
+        result = []
+        line = ['┌']
+        for item in lines[-1]:  # -1 will never be colored (OK size)
+            line.append('─' * len(item))
+            line.append('┬')
+        line[-1] = '┐';
+        result.append(''.join(line))
+        
+        # Items
+        for items in reversed(lines):
+            line = ['│']
+            for item in items:
+                line.append(item)
+                line.append('│')
+            result.append(''.join(line))
+        
+        # Footer
+        line = ['└']
+        for item in lines[-1]:
+            line.append('─' * len(item))
+            line.append('┴')
+        line[-1] = '┘';
+        result.append(''.join(line))
+        print('\n'.join(result))
+
 
 def plot_ways(policy='lru'):
     if np is None or plt is None:
@@ -277,6 +395,18 @@ def plot_psize():
     plt.show()
 
 
+def draw_example():
+    c = Cache(4, 8, 2, 'lru')
+    for i in range(3):
+     for j in range(32):
+      c.access(j, draw=True, delay_hit=0.05, delay_miss=0.2)
+     for j in range(32+4, 32+8):
+      c.access(j, draw=True, delay_hit=0.05, delay_miss=0.2)
+
+    print(c)
+
+
 if __name__ == '__main__':
-    plot_psize()
-    plot_ways()
+    draw_example()
+    #plot_psize()
+    #plot_ways()
