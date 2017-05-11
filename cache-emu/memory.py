@@ -245,7 +245,12 @@ class Cache:
     def content_of(self, partition):
         """Returns the contents of a given partition index"""
         if self.valid[partition]:
-            start = partition * self.partition_size
+            set_ = partition // self.ways
+            tag  = self.tags[partition]
+            
+            memory_block = (tag << set_.bit_length()) | set_
+            start = memory_block * self.partition_size
+            
             return '{}-{}'.format(start, start + self.partition_size - 1)
         return ''
 
