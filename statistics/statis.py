@@ -267,3 +267,44 @@ def hist(f, n, height=20, c='│'):
       print(c if s <= y else ' ', end=' ')
     print()
 
+
+def pascal(n, left_align=False, extra_line=None):
+  """Represents Pascal's triangle with n rows.
+
+     If 'left_align', then the triangle will be left algined.
+
+     If 'extra_line' is None, it will be true if n > 15 for clarity
+                     is True, an extra line will always be added
+                     is False, no extra line will be added
+  """
+  rows = [[1]]
+  for i in range(n-1):
+    row = [1]
+    for j in range(i):
+      row.append(rows[i][j] + rows[i][j+1])
+    row.append(1)
+    rows.append(row)
+  
+  shown = []
+  if left_align:
+    paddings = tuple(len(str(e)) for e in rows[-1])
+    for row in rows:
+      show = []
+      for i in range(len(row)):
+        show.append(str(row[i]).rjust(paddings[i]))
+      shown.append(', '.join(show))
+  
+  else:
+    longest = rows[-1][len(rows[-1])//2]
+    padding = len(str(longest))
+    last = ' '.join(str(e).center(padding) for e in rows[-1])
+    for i in range(len(rows)-1):
+      show = ' '.join(str(e).center(padding) for e in rows[i])
+      shown.append(show.center(len(last)))
+    shown.append(last)
+  
+  if extra_line is None and n > 10:
+    extra_line = True
+  
+  end = '\n\n' if extra_line else '\n'
+  print(end.join(s for s in shown))
