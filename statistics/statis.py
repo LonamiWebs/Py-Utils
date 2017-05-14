@@ -2,21 +2,46 @@ from math import factorial, exp
 
 
 def perm(n):
-  """Permutations
+  """Permutations.
      n = number of elements
 
-     Number of ways there are to rearrange n elements
+     Notation: P
+                n
+
+     All elements included: yes
+     Can elements repeat:   no
+     Order matters:         yes
+
+     See: Number of ways there are to rearrange n elements.
+
+     Practical example: amount of numbers with 3 distinct digits.
+     Let the elements be: 1, 2, 3:
+
+       123, 132, 213, 231, 312, 321
   """
   return factorial(n)
 
 
 def rperm(n, *ks):
-  """Permutations (allowing repetition)
+  """Permutations (allowing repetition).
      n = total number of elements
      ks = how many times the first, second, etc, element repeats
 
-     Number of ways there are to rearrange n elements,
-     with some repeated
+                 a,b,c…
+     Notation: PR
+                 n
+
+     All elements included: yes
+     Can elements repeat:   yes
+     Order matters:         yes
+
+     See: Number of ways there are to rearrange n elements,
+          some of them possibly repeated.
+
+     Practical example: amount of numbers with 3 digits.
+     Let the elements be: 1, 1, 2:
+
+       112, 121, 211
   """
   divisor = 1
   for k in ks:
@@ -25,39 +50,92 @@ def rperm(n, *ks):
 
 
 def vari(n, k):
-  """Variation
+  """Variations.
      n = total number of elements
      k = number of elements chosen
 
-     On n positions, k elements are chosen (order matters).
-     For instance, n = 7, k = 3: '__1_32_'
+                k
+     Notation: V
+                n
+
+     All elements included: no
+     Can elements repeat:   no
+     Order matters:         yes
+
+     See: Number of ways there are to rearrange k elements
+          from the set of n elements without repetition.
+
+     Practical example: amount of numbers with 3 digits.
+     Let the elements be: 1, 2, 3, 4:
+
+       123, 132, 213, 231, 312, 321,
+       124, 142, 214, 241, 412, 421
   """
-  return factorial(n) / factorial(n-k)
+  # n! / (n-k)!
+  result = 1
+  for i in range(n-k+1, n+1):
+    result *= i
+  return result
 
 
 def rvari(n, k):
-  """Variation (allowing repetition)
+  """Variations (allowing repetition).
      n = total number of elements
      k = number of elements chosen
- 
-     On n positions, k elements (possibly repeated) are chosen (order matters).
-     For instance, n = 7, k = 3: '_3__31_'
+
+                 k
+     Notation: VR
+                 n
+
+     All elements included: no
+     Can elements repeat:   yes
+     Order matters:         yes
+
+     See: Number of ways there are to rearrange k elements
+          from the set of n elements, being able to choose
+          some element more than once.
+
+     Practical example: amount of numbers with 2 digits.
+     Let the elements be: 1, 2, 3:
+
+       11, 22, 33, 12, 21, 13, 31, 23, 32
   """
   return n ** k
 
 
 def combs(n, k):
-    """Combinations
+    """Combinations.
        n = total number of elements
        k = number of elements chosen
 
-       Number of possible groups with k elements from n elements,
-       and the order doesn't matter.
+                  k                          ⎛n⎞
+       Notation: C        or "n choose k" as ⎝k⎠
+                  n
 
-       Also known as ⎛n⎞
-       "n choose k": ⎝k⎠
+       All elements included: no
+       Can elements repeat:   no
+       Order matters:         no
+
+       See: Number of sets with k elements from the original set of n.
+
+       Practical example: 2 winners are chosen from a group of 4.
+       Let the people be called: A, B, C, D
+
+         AB, AC, AD, BC, BD, CD
+
+       Some properties of the combinatory numbers are:
+
+         ⎛n⎞   ⎛n⎞
+         ⎝0⎠ = ⎝n⎠ = 1
+
+         ⎛n⎞   ⎛ n ⎞
+         ⎝k⎠ = ⎝n-k⎠
+
+         ⎛ n ⎞   ⎛n⎞   ⎛n+1⎞
+         ⎝k-1⎠ + ⎝k⎠ = ⎝ k ⎠
     """
-    return factorial(n) / (factorial(k) * factorial(n-k))
+    # n! / k!(n-k)!
+    return vari(n, k) / perm(k)
 
 
 def rcombs(n, k):
@@ -67,8 +145,24 @@ def rcombs(n, k):
 
        Number of possible groups with k elements from n elements,
        and the order doesn't matter.
+
+                 k           ⎛n+k-1⎞
+     Notation: CR        or  ⎝  k  ⎠
+                 n
+
+     All elements included: no
+     Can elements repeat:   yes
+     Order matters:         no
+
+     See: Number of sets with k elements from the original set of n,
+          where any element can be chosen more than once
+
+     Practical example: 2 souvenirs must be chosen from 4 available
+     Let the souvenirs be called: A, B, C, D
+
+       AA, AB, AC, AD, BB, BC, BD, CC, CD, DD
     """
-    return factorial(n+k-1) / (factorial(k) * factorial(n-k))
+    return combs(n+k-1, k)
 
 
 def dbinom(n, p):
