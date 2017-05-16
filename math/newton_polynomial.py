@@ -85,7 +85,8 @@ def f(s, e):
     
     if s == e:
         # End and start are the same, so it's the single i'th = s = e value.
-        # The x_i terms are given from the sequence, so the i'th term is seq[i].
+        # The x_i terms are given from the sequence,
+        # so the i'th term is seq[i].
         def base(seq):
             """Base case f₀ (slope function)"""
             # We don't actually care about a real x value here, since
@@ -94,8 +95,8 @@ def f(s, e):
             # Why don't we care about the `x` here? This is f₀, then x⁰ = 1.
             # This means that the slope with no degree is constant.
             if s >= len(seq):
-                raise ValueError(f'Cannot retrieve the slope of degree {s} '+
-                                  'on a sequence with only {len(seq)} items')
+                raise ValueError(f'Cannot retrieve the slope of degree {s} '
+                                 f'on a sequence with only {len(seq)} items')
             
             return seq[s]
         
@@ -119,7 +120,7 @@ def f(s, e):
             # And so on, each of which invoke the previous degree version.
             #
             # To get the previous starting slope function, with one degree
-            # less, we simply reduce the end by one unit so we get the previous
+            # less, simply reduce the end by one unit to get the previous.
             # function which still starts at the start `s`.
             f_s = f(s, e-1)
             
@@ -136,23 +137,24 @@ def f(s, e):
 
 def p(sequence, g=None):
     """Returns the polynomial from the given sequence.
-       If no degree g is specified, the degree = `len(sequence)-1` is used"""
+       If no degree g is specified, the degree = `len(sequence)-1` is used
+    """
     if not sequence:
-        raise ValueError('Cannot retrieve the polynomial of an empty sequence')
+        raise ValueError('Cannot retrieve polynomial from empty sequence')
     
     if g is None:
         g = len(sequence) - 1
     
     # The polynomial p_i was defined is follows:
     # p_i(x) = p_i-1(x)          + f_i(x₀, …, x_i) * (x * (x-1) * … * (x-i+1))
-    #          ^ previous degree + ^ slope for i     ^ preserving previous state
+    #          ^ previous degree + ^ slope for i     ^ preserving previous
     if g == 0:
         # Degree 0 is defined as being the first value from the sequence,
         # so this is the base case p₀.
         #
         # Why is it the first case? Because it satisfies the first term
-        # of the sequence when no `x` is actually involved. Once again,
-        # we don't need the actual value of the `x` really because it's x⁰ = 1.
+        # of the sequence when no x is actually involved. Once again, we
+        # don't need the actual value of the x really because it's x⁰ = 1.
         def base(x):
             """Base case p₀ (the first value of the sequence)"""
             return sequence[0]
@@ -168,7 +170,7 @@ def p(sequence, g=None):
             f_g = f(0, g)
             slope = f_g(sequence)
             
-            # …which is multiplied by `x*(x-1)*…*(x-i+1)` to keep the old state
+            # …which is multiplied by `x*(x-1)*…*(x-i+1)` to keep old state
             for i in range(g):
                 # i will go from 0 (x), 1 (x-1), 2 (x-2), …, g-1 (x-(g-1))
                 slope *= (x - i)
