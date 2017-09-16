@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+from bisect import bisect_left, bisect_right
+from itertools import islice
 
 
 def is_safe_prime(n):
@@ -19,102 +21,102 @@ def is_safe_prime(n):
 
 class infprimeseq:
     def __init__(self, initial_buffer_size=None):
-        self.i = -1
-        self.buffer = [2, 3, 5]
-
+        self._i = -1
+        self._e = infprimeseq.eratosthenes()
         if initial_buffer_size:
-            if initial_buffer_size < 0:
-                raise ValueError('initial_buffer_size must be a positive integer.')
-
-            # Extend the buffer up to initial_buffer_size
-            for i in range(initial_buffer_size):
-                self.__next__()
-
-            # Reset the internal stepper
-            self.i = -1
+            self._buffer = [next(self._e) for _ in range(initial_buffer_size)]
+            self._buffersize = initial_buffer_size
+        else:
+            self._buffer = [next(self._e)]
+            self._buffersize = 1
 
     def __iter__(self):
-        self.i = -1
+        self._i = -1
         return self
 
     def __next__(self):
-        self.i += 1
-
-        # self.i should always be ≤ len(self.buffer), or someone messed with i
-        if self.i >= len(self.buffer):
-            # Prime numbers ≥ 5 satisfy either of the following:
-            #   (n - 5) % 6 == 0
-            #   (n - 7) % 6 == 0
-            # If the first condition is met on the last prime,
-            # then check if (last prime + 2) is prime. If it
-            # is not, then check i+6n, i+6n+2, for n -> inf
-            #
-            # If the first condition is not met, then the second
-            # condition will, so jump 4 (to complete a cycle) to
-            # check the next prime, and repeat i+6n, i+6n+2
-            prime = self.buffer[-1]
-            if (prime - 5) % 6 == 0:
-                prime += 2
-                if self._fastcontains(prime):
-                    self.buffer.append(prime)
-                    return prime
-
-            prime += 4
-            while True:
-                if self._fastcontains(prime):
-                    self.buffer.append(prime)
-                    return prime
-                prime += 2
-
-                if self._fastcontains(prime):
-                    self.buffer.append(prime)
-                    return prime
-                prime += 4
+        self._i += 1
+        if self._i == self._buffersize:
+            p = next(self._e)
+            self._buffer.append(p)
+            self._buffersize += 1
+            return p
         else:
-            return self.buffer[self.i]
-
-    @staticmethod
-    def _canbeprime(n):
-        # Assume odd number ≥ 5
-        return ((n - 5) % 6 == 0) or ((n - 7) % 6 == 0)
-
-    def _fastcontains(self, n):
-        # This won't handle special cases (< 5) neither perform check
-        # whether it can possibly be prime or not (_canbeprime)
-        limit = int(n**0.5)
-        for p in self.buffer:
-            if p > limit:
-                return True
-            if n % p == 0:
-                return False
-
-        raise ValueError('The gap between primes was incredibly large. This should not ever happen.')
+            return self._buffer[self._i]
 
     def __contains__(self, n):
         # Special cases
-        if n < 2:
-            return False
         if n < 4:
+            if n < 2:
+                return False
             return True
 
         # Fast check
-        if not self._canbeprime(n):
+        if ((n - 5) % 6 != 0) and ((n - 7) % 6 != 0):
             return False
 
-        # Check prime factors
-        limit = int(n**0.5)
-        for p in self.buffer:
-            if p > limit:
+        # Can this number be on the buffer?
+        if n <= self._buffer[-1]:
+            if n == self._buffer[-1]:
+                # No need to use binary search at all
                 return True
+
+            # Binary search
+            pos = bisect_left(self._buffer, n, 0, self._buffersize)
+            return pos != self._buffersize and self._buffer[pos] == n
+
+        # Not in the buffer, so increase it until we have enough primes
+        # to check against n (we may not need to increase it at all)
+        limit = int(n**0.5) + 1
+        if self._buffer[-1] < limit:
+            while self._buffer[-1] < limit:
+                self._buffer.append(next(self._e))
+            self._buffersize = len(self._buffer)
+            # Had to expand until we had just enough, so last is the limit
+            ilimit = self._buffersize
+        else:
+            # We had enough primes in the buffer, so find until which we
+            # should be looking
+            ilimit = bisect_right(self._buffer, limit)
+
+        for p in islice(self._buffer, ilimit):
             if n % p == 0:
                 return False
 
-        # "Slow" fallback, never called when invoked sequentially (via iterator)
-        for i in range(self.buffer[-1]+2, limit + 1, 2):
-            if n % i == 0:
-                return False
-
+        # Nice, we have a new prime
         return True
+
+    @staticmethod
+    def eratosthenes():
+        # Modified version from the second page:
+        # archive.oreilly.com/pub/a/python/excerpt/pythonckbk_chap1/index1.html
+        q = 3
+        D = {}
+        yield 2
+        while True:
+            p = D.pop(q, None)
+            # Check 'if p' instead 'if p is None', which is around 15% faster.
+            if p:
+                # Used to be 'x = p + q', and then 'or x even' in the loop,
+                # implemented as 'or not (x&1)'.
+                #
+                # We know that q is always odd, and p is q*q (where q is odd)
+                # Multiplying an odd number by any other (or even itself) is
+                # always odd. Adding two odds together is always even, so we
+                # always need to add p again, or simply add 2p. ~30% speed-up.
+                p2 = p * 2
+                x = p2 + q
+                while x in D:
+                    x += p2
+                D[x] = p
+            else:
+                yield q
+                D[q*q] = q
+            q += 2
+
+    # Call infprimeseq.unwrap() for a faster iterator, but cannot be
+    # reused, and checking whether it contains some element will fail.
+    unwrap = eratosthenes
 
 
 class primeseq(infprimeseq):
