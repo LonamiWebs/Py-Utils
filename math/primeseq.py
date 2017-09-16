@@ -19,10 +19,10 @@ def is_safe_prime(n):
     return True
 
 
-class infprimeseq:
+class primeseq:
     def __init__(self, initial_buffer_size=None):
         self._i = -1
-        self._e = infprimeseq.eratosthenes()
+        self._e = primeseq.eratosthenes()
         if initial_buffer_size:
             self._buffer = [next(self._e) for _ in range(initial_buffer_size)]
             self._buffersize = initial_buffer_size
@@ -119,25 +119,9 @@ class infprimeseq:
     unwrap = eratosthenes
 
 
-class primeseq(infprimeseq):
-    def __init__(self, stop, initial_buffer_size=None):
-        super().__init__(initial_buffer_size=initial_buffer_size)
-        self.stop = stop
-
-        # After everything has been initialized, we can now override __next__
-        def nxt(slf):
-            p = super().__next__()
-            if p < slf.stop:
-                return p
-            else:
-                raise StopIteration()
-
-        self.__next__ = nxt
-
-
 if __name__ == '__main__':
     print('Testing…')
-    ps = infprimeseq()
+    ps = primeseq()
     for i in range(0, 10000):
         if (i in ps) != is_safe_prime(i):
             if is_safe_prime(i):
