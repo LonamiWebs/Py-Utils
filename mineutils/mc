@@ -1,0 +1,369 @@
+#!/usr/bin/env python3
+"""
+Utility script to download, create and start Minecraft servers.
+Written by Lonami Exo (https://lonamiwebs.github.io); 11/11/2017.
+
+If you redistribute this file, don't be a dick. Share improvements.
+"""
+import os
+import sys
+import json
+import shutil
+import tempfile
+import webbrowser
+import urllib.request
+
+
+# "__comment": "This URL is being phased out! Please update your scripts
+# to check https://launchermeta.mojang.com/mc/game/version_manifest.json
+# instead. Thanks <3 —Dinnerbone",
+#
+# "https://www.npmjs.com/package/minecraft-versions";
+# This .json file contains version about all available Minecraft versions.
+VERSIONS_URL = 'https://launchermeta.mojang.com/mc/game/version_manifest.json'
+
+# Minimum and maximum RAM (in MB) to be used when running the server
+MIN_RAM = 1024
+MAX_RAM = 3072
+
+# For setting up or cleaning the configuration
+SERVER_PROPERTIES = 'server.properties'
+SERVER_ICON = 'server-icon.png'
+SERVER_JAR = 'minecraft_server.jar'
+EULA_TXT = 'eula.txt'
+SERVER_FILES = (
+    'banned-ips.json', 'banned-players.json', 'eula.txt', 'ops.json',
+    'server.properties', 'usercache.json', 'whitelist.json'
+)
+DEFAULT_SERVER_PROPERTIES = \
+'''allow-flight=false
+allow-nether=true
+difficulty=1
+enable-command-block=false
+enable-query=false
+enable-rcon=false
+force-gamemode=false
+gamemode=0
+generate-structures=true
+generator-settings=
+hardcore=false
+level-name=world
+level-seed=
+level-type=DEFAULT
+max-build-height=256
+max-players=20
+max-tick-time=60000
+max-world-size=29999984
+motd=A Minecraft Server
+network-compression-threshold=256
+online-mode=true
+op-permission-level=4
+player-idle-timeout=0
+prevent-proxy-connections=false
+pvp=true
+resource-pack=
+resource-pack-sha1=
+server-ip=
+server-port=25565
+snooper-enabled=true
+spawn-animals=true
+spawn-monsters=true
+spawn-npcs=true
+use-native-transport=true
+view-distance=10
+white-list=false'''
+
+
+class TempWorkDir:
+    """
+    Helper class to temporary switch to another directory.
+
+    If no directory is specified, the directory will be switched to wherever
+    this script file lives by making use of the __file__ special variable.
+    """
+
+    def __init__(self, where=None):
+        self.original = None
+        self.where = where or os.path.abspath(os.path.dirname(__file__))
+
+    def __enter__(self):
+        self.original = os.path.abspath(os.path.curdir)
+        os.chdir(self.where)
+        return self
+
+    def __exit__(self, *args):
+        os.chdir(self.original)
+
+
+def _load_url(url):
+    """Loads the given URL as JSON and returns it"""
+    return json.loads(urllib.request.urlopen(url).read().decode('utf-8'))
+
+
+def _download(url, to):
+    """Downloads the given URL to the desired path or file-like object"""
+    f = open(to, 'wb') if isinstance(to, str) else to
+    try:
+        with urllib.request.urlopen(url) as response:
+            shutil.copyfileobj(response, f)
+    finally:
+        if isinstance(to, str):
+            f.close()
+
+
+def _get_versions():
+    """Gets all available Minecraft versions"""
+    return _load_url(VERSIONS_URL)
+
+
+def _error(*messages, end='\n'):
+    """Prints the given error messages and exits the program"""
+    sys.stderr.write(' '.join(messages) + end)
+    exit(1)
+
+
+def _warn(*messages, end='\n'):
+    """Prints the given warn messages"""
+    sys.stderr.write('warning: ' + ' '.join(messages) + end)
+
+
+def _read_properties():
+    """
+    Reads the properties file defined as SERVER_PROPERTIES,
+    or exits with error code 1 if the file is not found
+    """
+    result = {}
+    try:
+        with open(SERVER_PROPERTIES) as f:
+            for line in f:
+                line = line.strip()
+                if not line.startswith('#'):
+                    where = line.find('=')
+                    if where != -1:
+                        name, value = line[:where], line[where + 1:]
+                        result[name] = value
+    except FileNotFoundError:
+        _error(f'file {name} does not exist. reset it first.')
+
+    return result
+
+
+def _run(program, *args):
+    """Spawns a the given program as a subprocess and waits for its exit"""
+    # I for Invariant argument count, P for using PATH environmental variable
+    os.spawnlp(os.P_WAIT, program, program, *args)
+
+
+def _resize_image(file, to, width, height):
+    """
+    Resizes the given file image to the output path, and the given dimensions.
+    If the PIL module can't be imported, the pillow package will be installed.
+
+    If the input file is one of 'none', 'null', 'empty', 'rm', 'remove', the
+    destination file will be removed if it exists, or done nothing otherwise.
+    """
+    if file.lower() in ('none', 'null', 'empty', 'rm', 'remove'):
+        if os.path.isfile(to):
+            os.remove(to)
+        return
+
+    try:
+        from PIL import Image
+    except ImportError:
+        _run('pip', 'install', 'pillow', '--user')
+        from PIL import Image
+
+    if file.startswith('file://'):
+        file = file[len('file://'):]
+
+    if not os.path.isfile(file):
+        with tempfile.TemporaryFile() as f:
+            _download(file, f)
+            f.seek(0)
+            img = Image.open(f)
+            img.load()
+    else:
+        with open(file, 'rb') as f:
+            img = Image.open(f)
+            img.load()
+
+    img.resize((width, height), Image.LANCZOS).save(to)
+
+
+def help():
+    print(
+'* help:\n'
+'   shows this text message.\n'
+'\n'
+'* create [version] [dir]:\n'
+'    downloads minecraft_server.jar and initializes the directory.\n'
+'    if version is omitted, latest will be used. may be release or snapshot.\n'
+'    if dir is omitted, current directory will be used.\n'
+'\n'
+'* run [min] [max]:\n'
+'    runs minecraft_server.jar from this directory.\n'
+'    if min/max are used, specifies the minimum/maximum ram in mb.\n'
+'\n'
+'* clean [all]:\n'
+'    cleans the world from the directory.\n'
+'    if all is specified, also deletes configuration files.\n'
+'\n'
+'* conf:\n'
+'    <set name value> or <get name> or <list> or <reset> or <search filter>\n'
+'    may also <set icon path|url> to create the server icon or <get icon>\n'
+'\n'
+'        =============================================================\n'
+'        == mc utility by lonami exo (https://lonamiwebs.github.io) ==\n'
+'        ============================================================='
+    )
+
+
+def create(args):
+    version, out_dir = None, '.'
+    if len(args) >= 1:
+        version = args[0].lower().lstrip('v')
+        if len(args) >= 2:
+            out_dir = args[1]
+
+    print('loading versions...')
+    versions = _get_versions()
+    latest = versions['latest']
+    print(f'latest version are {latest["release"]} and {latest["snapshot"]}.')
+
+    if not version or version == 'release':
+        version = latest['release']
+    elif version == 'snapshot':
+        version = latest['snapshot']
+
+    found = False
+    print(f'looking for {version}...')
+    for v in versions['versions']:
+        if v['id'] == version:
+            found = True
+            version = v
+            break
+
+    if not found:
+        _error(f'version {version} not found.')
+
+    print(f'found version {version["id"]} from {version["releaseTime"]}.')
+    print('downloading version metadata...')
+    version = _load_url(version['url'])
+    jar_url = version['downloads']['server']['url']
+    out_file = os.path.join(out_dir, SERVER_JAR)
+    os.makedirs(out_dir, exist_ok=True)
+
+    print(f'downloading {os.path.basename(jar_url)} to {out_file}...')
+    if os.path.isfile(out_file):
+        os.remove(out_file)
+    _download(jar_url, out_file)
+    print(f'resetting {SERVER_PROPERTIES} and accepting eula...')
+    with TempWorkDir(out_dir):
+        conf(['reset'])
+
+
+def run(args):
+    min_ram = MIN_RAM if len(args) < 1 else int(args[0])
+    max_ram = MAX_RAM if len(args) < 2 else int(args[1])
+    _run('java',
+         f'-Xms{min_ram}M', f'-Xmx{max_ram}M', '-jar', SERVER_JAR, 'nogui')
+
+
+def clean(args):
+    clean_all = len(args) >= 1 and args[0].lower() == 'all'
+    if os.path.isfile(SERVER_PROPERTIES):
+        world_name = _read_properties().get('level-name', 'world')
+    else:
+        world_name = 'world'
+
+    if os.path.isdir(world_name):
+        shutil.rmtree(world_name)
+
+    if clean_all:
+        for name in SERVER_FILES:
+            if os.path.isfile(name):
+                os.remove(name)
+
+
+def conf(args):
+    action = args[0]
+    if action == 'reset':
+        with open(EULA_TXT, 'w') as f:
+            f.write('eula=true\n')
+
+        with open(SERVER_PROPERTIES, 'w') as f:
+            f.write(DEFAULT_SERVER_PROPERTIES)
+
+    elif action == 'get':
+        if len(args) < 2:
+            _error('not enough arguments.')
+
+        which = args[1].lower()
+        if which == 'icon':
+            # Special case, if there's a SERVER_ICON open it
+            if os.path.isfile(SERVER_ICON):
+                webbrowser.open(SERVER_ICON)
+            else:
+                _error('no server icon for this server exists.')
+        else:
+            properties = _read_properties()
+            value = properties.get(which, None)
+            if value:
+                print(value)
+            else:
+                _error(f'property {which} was not found.')
+
+    elif action == 'set':
+        if len(args) < 3:
+            _error('not enough arguments.')
+
+        which = args[1].lower().replace(' ', '-').replace('_', '-')
+        value = args[2].replace('\n', '\\n')
+        if which == 'icon':
+            # Special case, allow setting a server-icon from here
+            _resize_image(value, to=SERVER_ICON, width=64, height=64)
+        else:
+            properties = _read_properties()
+            if which not in properties:
+                _warn(f'adding new property {which}.')
+            properties[which] = value
+
+            with open(SERVER_PROPERTIES, 'w') as f:
+                for k in sorted(properties.keys()):
+                    f.write(k)
+                    f.write('=')
+                    f.write(properties[k])
+                    f.write('\n')
+
+    elif action == 'list':
+        properties = _read_properties()
+        for k in sorted(properties.keys()):
+            print(k, '=', properties[k])
+
+    elif action == 'search':
+        if len(args) < 2:
+            _error('not enough arguments.')
+
+        search = args[1]
+        properties = _read_properties()
+        for k in sorted(properties.keys()):
+            if search in k.lower() or search in properties[k].lower():
+                print(k, '=', properties[k])
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        help()
+        quit()
+
+    action, rest = sys.argv[1], sys.argv[2:]
+    if action == 'help':
+        help()
+    elif action == 'create':
+        create(rest)
+    elif action == 'run':
+        run(rest)
+    elif action == 'clean':
+        clean(rest)
+    elif action == 'conf':
+        conf(rest)
