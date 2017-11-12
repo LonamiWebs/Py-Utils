@@ -1,0 +1,27 @@
+#!/bin/env python3
+"""
+Upgrade all outdated packages with pip.
+Written by Lonami (@LonamiWebs) - do whatever you want with this script
+"""
+from subprocess import run, PIPE, Popen
+
+if run(['id', '-u'], stdout=PIPE, encoding='utf-8').stdout.strip() != '0':
+    print('Script must be ran as root.')
+    quit()
+
+print('Getting list of outdated packages...')
+cmd = ['pip', 'list', '--outdated', '--format=columns']
+packages = [
+    x.split()[0] for x in
+    run(cmd, stdout=PIPE, encoding='utf-8').stdout.split('\n')[2:] if x
+]
+
+if packages:
+    print('Upgrading', len(packages), 'packages...')
+    for package in packages:
+        ps = [Popen(['pip', 'install', '--upgrade', package])]
+
+    for p in ps:
+        p.wait()
+
+print('All up to date ^_^')
