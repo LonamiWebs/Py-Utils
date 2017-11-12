@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Script to re-click N times on the screen"""
+
+import sys
+import subprocess
+
+for i in range(int(sys.argv[1])):
+    subprocess.run(['xdotool', 'click', '1'])
