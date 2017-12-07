@@ -5,6 +5,7 @@ import os
 
 
 utilities = (
+    'images/scrap',
     'mineutils/mc',
     'misc/gitmail',
     'misc/pipu',

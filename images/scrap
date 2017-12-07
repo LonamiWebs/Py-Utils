@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""
+Scraper script intended to batch download images from a website.
+Requires 'requests' and 'bs4' packages.
+"""
+import os
+import re
+import sys
+import argparse
+from collections import deque
+from urllib.parse import urlparse
+
+import requests
+from bs4 import BeautifulSoup as Soup
+
+
+# follow links into these extensions only
+PAGE_FORMATS = {'', '.html', '.htm', '.php'}
+
+# forbidden characters in a filename
+FORBIDDEN = '<>:"/\|?*'
+FORBIDDEN_FIX = '_'
+
+
+def download(url, minsize=1, overwrite=False):
+    """
+    Downloads the file located at URL if its Content-length is at least
+    minsize (in bytes). If overwrite is False, a unique file name will
+    be found while the file already exists, otherwise it'll overwrite it.
+
+    Returns True if the file was downloaded, and False otherwise.
+    """
+    if '%0A' in url:  # normal filenames won't have a new line
+        return False
+
+    r = requests.get(url, stream=True)
+    if int(r.headers['Content-length']) < minsize:
+        return False
+
+    name = os.path.basename(url)
+    for c in FORBIDDEN:
+        name = name.replace(c, FORBIDDEN_FIX)
+
+    if not overwrite:
+        oriname, ext = os.path.splitext(name)
+        name = oriname
+        n = 1
+        while os.path.isfile(name + ext):
+            name = '{} ({})'.format(oriname, n)
+            n += 1
+        name = name + ext
+
+    with open(name, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=4096):
+            f.write(chunk)
+
+    return True
+
+
+def scrap(url, netloc, minsize, formats, overwrite, pathre):
+    """
+    Scraps the given URL, downloading all the files with a file extension
+    that exists in formats, if the found items with an extension belonging
+    to formats are larger than minsize.
+
+    If the netloc string is present, the scrapper will recurse into all
+    domains that match it, otherwise, only URL will be scrapped.
+
+    The overwrite parameter describes whether items with the same name
+    should be overwritten, or alternative names should be found.
+
+    Finally, pathre works in conjunction with netloc, and if it must
+    be a regex that matches the path (including the slash) of the URLs
+    that the scrapper should recurse into.
+    """
+    visitted = set(urlparse(url).path)  # visitted paths
+    checked = set()  # files that were attempted to download
+
+    # keep track on how many files were downloaded from each tag
+    imgtag = 0
+    atag = 0
+
+    urls = deque()
+    urls.append(url)
+    while urls:
+        r = requests.get(urls.popleft())
+        soup = Soup(r.text, 'html.parser')
+
+        # if we have downloaded 0 images from this tag while we have images on
+        # the other tag, we probably won't find any using this tag so don't.
+        if imgtag != 0 or atag == 0:
+            for img in soup.find_all('img'):
+                if img['src'] not in checked:
+                    # TODO Could this be smart enough to detect how
+                    # files that have been downloaded look like and just
+                    # ignore next ones (like thumbnails)?
+                    imgtag += int(download(img['src'], minsize=minsize))
+                    checked.add(img['src'])
+
+        for a in soup.find_all('a'):
+            url = urlparse(a.get('href'))
+            if not url.path:
+                continue
+
+            _, ext = os.path.splitext(os.path.basename(url.path))
+            ext = ext.lower()
+            if ext in formats:
+                if a['href'] not in checked:
+                    atag += int(download(a['href'], minsize=minsize))
+                    checked.add(a['href'])
+
+            elif (url.netloc == netloc and
+                    ext in PAGE_FORMATS and
+                    pathre.match(url.path) and
+                    url.path not in visitted):
+                visitted.add(url.path)
+                urls.append(a.get('href'))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='website scrapper to download images.')
+    parser.add_argument('url', help='the url from which to recursively download images.')
+    parser.add_argument('-m', '--minsize', type=int, default=30 * 1024, metavar='N',
+        help='minimum image size before downloading, default 30kb.')
+
+    parser.add_argument('-f', '--formats', default='jpg,png,gif,jpeg', metavar='F',
+        help='''comma separated list of extensions considered to be images.
+                adding or not the dot is optional.''')
+
+    parser.add_argument('-o', '--overwrite', action='store_true',
+        help='''overwrite existing files instead figuring out unique names.
+                the names will have (n) if this option is not specified
+                and a file already exists.''')
+
+    parser.add_argument('-r', '--recursive', nargs='?', default=False, metavar='REGEX',
+        help='''recursively scraps the website, without leaving the domain.
+                if the regex is provided, it must be a python-compliant regex
+                that will match the *path* (including the slash) for those
+                links that will be attempted to be recursed into.''')
+
+    args = parser.parse_args()
+    try:
+        scrap(args.url,
+            netloc=urlparse(args.url).netloc if args.recursive != False else None,
+            minsize=max(args.minsize, 1),
+            formats={'.'+f.strip('.').lower() for f in args.formats.split(',')},
+            overwrite=args.overwrite,
+            pathre=re.compile(args.recursive or '')
+        )
+    except KeyboardInterrupt:
+        sys.stderr.write('operation interrupted by user.\n')
