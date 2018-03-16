@@ -1,6 +1,6 @@
-from primeseq import infprimeseq
+from primeseq import primeseq
 
-primes = infprimeseq()
+primes = primeseq()
 
 def get_factors(n):
     """Returns all the prime factors of n"""
