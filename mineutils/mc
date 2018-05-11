@@ -204,7 +204,7 @@ def _resize_image(file, to, width, height):
 
 
 def help():
-    print('''
+    lines = '''
 * help:
    shows this text message.
 
@@ -228,7 +228,13 @@ def help():
         =============================================================
         == mc utility by lonami exo (https://lonamiwebs.github.io) ==
         ============================================================='
-    '''.strip())
+    '''.strip().split('\n')
+    height = max(shutil.get_terminal_size((80, 24)).lines, 2)
+    while len(lines) > height:
+        print('\n'.join(lines[:height - 1]))
+        lines = lines[height - 1:]
+        input('(press enter to show more...)')
+    print('\n'.join(lines))
 
 
 def create(args):
