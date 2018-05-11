@@ -175,7 +175,9 @@ def _resize_image(file, to, width, height):
     If the input file is one of 'none', 'null', 'empty', 'rm', 'remove', the
     destination file will be removed if it exists, or done nothing otherwise.
     """
-    if file.lower() in ('none', 'null', 'empty', 'rm', 'remove'):
+    if not file:
+        file = ''
+    if file.lower() in ('', 'none', 'null', 'empty', 'rm', 'remove'):
         if os.path.isfile(to):
             os.remove(to)
         return
@@ -222,7 +224,7 @@ def help():
     if all is specified, also deletes configuration files.
 
 * conf:
-    <set name value> or <get name> or <list> or <reset> or <search filter>
+    <set name [value]> or <get name> or <list> or <reset>
     may also <set icon path|url> to create the server icon or <get icon>
 
         =============================================================
@@ -337,19 +339,27 @@ def conf(args):
                 _error(msg)
 
     elif action == 'set':
-        if len(args) < 3:
+        if len(args) < 2:
             _error('not enough arguments.')
 
         which = args[1].lower().replace(' ', '-').replace('_', '-')
-        value = args[2].replace('\n', '\\n')
+        value = args[2].replace('\n', '\\n') if len(args) > 2 else None
         if which == 'icon':
             # Special case, allow setting a server-icon from here
             _resize_image(value, to=SERVER_ICON, width=64, height=64)
         else:
             properties = _read_properties()
-            if which not in properties:
-                _warn(f'adding new property {which}.')
-            properties[which] = value
+            if value is not None and which not in properties:
+                msg = f'adding new property {which}.'
+                close = _search_property(properties, which)
+                if close:
+                    msg += f' did you mean {close}?'
+                _warn(msg)
+
+            if value is not None:
+                properties[which] = value
+            elif which in properties:
+                del properties[which]
 
             with open(SERVER_PROPERTIES, 'w') as f:
                 for k in sorted(properties.keys()):
@@ -362,16 +372,6 @@ def conf(args):
         properties = _read_properties()
         for k in sorted(properties.keys()):
             print(k, '=', properties[k])
-
-    elif action == 'search':
-        if len(args) < 2:
-            _error('not enough arguments.')
-
-        search = args[1]
-        properties = _read_properties()
-        for k in sorted(properties.keys()):
-            if search in k.lower() or search in properties[k].lower():
-                print(k, '=', properties[k])
 
 
 if __name__ == '__main__':
