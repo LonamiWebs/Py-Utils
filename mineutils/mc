@@ -204,31 +204,31 @@ def _resize_image(file, to, width, height):
 
 
 def help():
-    print(
-'* help:\n'
-'   shows this text message.\n'
-'\n'
-'* create [version] [dir]:\n'
-'    downloads minecraft_server.jar and initializes the directory.\n'
-'    if version is omitted, latest will be used. may be release or snapshot.\n'
-'    if dir is omitted, current directory will be used.\n'
-'\n'
-'* run [min] [max]:\n'
-'    runs minecraft_server.jar from this directory.\n'
-'    if min/max are used, specifies the minimum/maximum ram in mb.\n'
-'\n'
-'* clean [all]:\n'
-'    cleans the world from the directory.\n'
-'    if all is specified, also deletes configuration files.\n'
-'\n'
-'* conf:\n'
-'    <set name value> or <get name> or <list> or <reset> or <search filter>\n'
-'    may also <set icon path|url> to create the server icon or <get icon>\n'
-'\n'
-'        =============================================================\n'
-'        == mc utility by lonami exo (https://lonamiwebs.github.io) ==\n'
-'        ============================================================='
-    )
+    print('''
+* help:
+   shows this text message.
+
+* create [version] [dir]:
+    downloads minecraft_server.jar and initializes the directory.
+    if version is omitted, latest will be used. may be release or snapshot.
+    if dir is omitted, current directory will be used.
+
+* run [min] [max]:
+    runs minecraft_server.jar from this directory.
+    if min/max are used, specifies the minimum/maximum ram in mb.
+
+* clean [all]:
+    cleans the world from the directory.
+    if all is specified, also deletes configuration files.
+
+* conf:
+    <set name value> or <get name> or <list> or <reset> or <search filter>
+    may also <set icon path|url> to create the server icon or <get icon>
+
+        =============================================================
+        == mc utility by lonami exo (https://lonamiwebs.github.io) ==
+        ============================================================='
+    '''.strip())
 
 
 def create(args):
