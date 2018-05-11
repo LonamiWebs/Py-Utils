@@ -9,10 +9,12 @@ import os
 import sys
 import json
 import shutil
+import asyncio
 import difflib
 import tempfile
 import webbrowser
 import urllib.request
+import importlib.util
 
 
 # "__comment": "This URL is being phased out! Please update your scripts
@@ -161,10 +163,56 @@ def _search_property(properties, search, threshold=0.50):
     return scores[-1][0] if scores[-1][1] >= threshold else None
 
 
-def _run(program, *args):
-    """Spawns a the given program as a subprocess and waits for its exit"""
+def _run(program, *args, hook=None):
+    """
+    Spawns a the given program as a subprocess and waits for its exit.
+
+    If hook is a module, a file-like object 'pin' will be injected in
+    it, and their on_stdout and on_stderr definitions will be called.
+    """
     # I for Invariant argument count, P for using PATH environmental variable
-    os.spawnlp(os.P_WAIT, program, program, *args)
+    if hook is None:
+        os.spawnlp(os.P_WAIT, program, program, *args)
+    else:
+        rc = asyncio.get_event_loop().run_until_complete
+
+        o = asyncio.subprocess.PIPE if hasattr(hook, 'on_stdout') else None
+        e = asyncio.subprocess.PIPE if hasattr(hook, 'on_stderr') else None
+        process = rc(asyncio.create_subprocess_exec(program, *args,
+                stdin=asyncio.subprocess.PIPE, stdout=o, stderr=e))
+
+        hook.pin = process.stdin
+        async def read_stream(stream, callback):
+            while True:
+                line = await stream.readline()
+                print(line.decode('utf-8'), end='')
+                if line:
+                    callback(line)
+                else:
+                    break
+
+        async def read_stdin():
+            loop = asyncio.get_event_loop()
+            while True:
+                line = await loop.run_in_executor(None, sys.stdin.readline)
+                if line.strip():
+                    process.stdin.write(line.encode('utf-8'))
+                    if line == 'stop\n':
+                        break
+                else:
+                    break
+
+        wait_for = [read_stdin()]
+        if o:
+            wait_for.append(read_stream(process.stdout, hook.on_stdout))
+        if e:
+            wait_for.append(read_stream(process.stderr, hook.on_stderr))
+        try:
+            rc(asyncio.wait(wait_for))
+            rc(process.wait())
+        except KeyboardInterrupt:
+            _warn('keyboardinterrupt, waiting for exit...')
+            rc(process.wait())
 
 
 def _resize_image(file, to, width, height):
@@ -227,9 +275,18 @@ def help():
     <set name [value]> or <get name> or <list> or <reset>
     may also <set icon path|url> to create the server icon or <get icon>
 
+* hook [script]:
+    hooks stdin, stdout and stderr to functions defined in script.
+
+    the python script may define on_stdout and/or on_stderr which
+    will be called whenever new output occurs, being passed bytes.
+
+    the python script also has access to the pin variable, which
+    is a file-like object represeting the spawned process' stdin.
+
         =============================================================
         == mc utility by lonami exo (https://lonamiwebs.github.io) ==
-        ============================================================='
+        =============================================================
     '''.strip().split('\n')
     height = max(shutil.get_terminal_size((80, 24)).lines, 2)
     while len(lines) > height:
@@ -283,11 +340,12 @@ def create(args):
         conf(['reset'])
 
 
-def run(args):
+def run(args, hook=None):
     min_ram = MIN_RAM if len(args) < 1 else int(args[0])
     max_ram = MAX_RAM if len(args) < 2 else int(args[1])
     _run('java',
-         f'-Xms{min_ram}M', f'-Xmx{max_ram}M', '-jar', SERVER_JAR, 'nogui')
+         f'-Xms{min_ram}M', f'-Xmx{max_ram}M', '-jar', SERVER_JAR, 'nogui',
+         hook=hook)
 
 
 def clean(args):
@@ -375,6 +433,25 @@ def conf(args):
 
 
 if __name__ == '__main__':
+    try:
+        hook = sys.argv.index('hook')
+        sys.argv.pop(hook)
+        if hook == len(sys.argv):
+            _error('no hook file specified')
+
+        hook = sys.argv.pop(hook)
+        if not os.path.isfile(hook):
+            _error(f'hook file {hook} does not exist')
+
+        try:
+            spec = importlib.util.spec_from_file_location('hook', hook)
+            hook = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(hook)
+        except Exception as e:
+            _error(f'failed to load hook: {e}')
+    except ValueError:
+        hook = None
+
     if len(sys.argv) < 2:
         help()
         quit()
@@ -385,8 +462,9 @@ if __name__ == '__main__':
     elif action == 'create':
         create(rest)
     elif action == 'run':
-        run(rest)
+        run(rest, hook=hook)
     elif action == 'clean':
         clean(rest)
     elif action == 'conf':
         conf(rest)
+
