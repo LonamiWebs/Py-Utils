@@ -12,9 +12,9 @@ import shutil
 import asyncio
 import difflib
 import tempfile
+import importlib
 import webbrowser
 import urllib.request
-import importlib.util
 
 
 # "__comment": "This URL is being phased out! Please update your scripts
@@ -163,50 +163,79 @@ def _search_property(properties, search, threshold=0.50):
     return scores[-1][0] if scores[-1][1] >= threshold else None
 
 
-def _run(program, *args, hook=None):
+def _load_hook(filename):
+    spec = importlib.util.spec_from_file_location('hook', filename)
+    hook = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hook)
+    return hook
+
+
+def _run(program, *args, hook_file=None):
     """
     Spawns a the given program as a subprocess and waits for its exit.
 
-    If hook is a module, a file-like object 'pin' will be injected in
-    it, and their on_stdout and on_stderr definitions will be called.
+    If hook is a file, a file-like object 'pin' will be injected in
+    its module upon loading, and their on_stdout and on_stderr defs
+    will be called on program's IO.
     """
     # I for Invariant argument count, P for using PATH environmental variable
-    if hook is None:
+    if not hook_file:
         os.spawnlp(os.P_WAIT, program, program, *args)
     else:
+        p = asyncio.subprocess.PIPE
         rc = asyncio.get_event_loop().run_until_complete
-
-        o = asyncio.subprocess.PIPE if hasattr(hook, 'on_stdout') else None
-        e = asyncio.subprocess.PIPE if hasattr(hook, 'on_stderr') else None
         process = rc(asyncio.create_subprocess_exec(program, *args,
-                stdin=asyncio.subprocess.PIPE, stdout=o, stderr=e))
+                stdin=p, stdout=p, stderr=p))
 
-        hook.pin = process.stdin
+        try:
+            hook = _load_hook(hook_file)
+            hook.pin = process.stdin
+        except Exception as e:
+            hook = None
+            _warn(f'failed to load hook: {e}')
+
         async def read_stream(stream, callback):
             while True:
                 line = await stream.readline()
                 print(line.decode('utf-8'), end='')
-                if line:
-                    callback(line)
+                cb = callback[0]
+                if line and callable(cb):
+                    cb(line)
                 else:
                     break
 
         async def read_stdin():
+            nonlocal hook
             loop = asyncio.get_event_loop()
             while True:
                 line = await loop.run_in_executor(None, sys.stdin.readline)
                 if line.strip():
-                    process.stdin.write(line.encode('utf-8'))
-                    if line == 'stop\n':
-                        break
+                    if line == 'hook\n':
+                        try:
+                            if hasattr(hook, 'teardown'):
+                                hook.teardown()
+
+                            hook = _load_hook(hook_file)
+                            out[0] = getattr(hook, 'on_stdout', None)
+                            err[0] = getattr(hook, 'on_stderr', None)
+                            print('reloaded hook successfully')
+                        except Exception as e:
+                            out[0] = err[0] = None
+                            _warn(f'failed to reload hook: {e}')
+                    else:
+                        process.stdin.write(line.encode('utf-8'))
+                        if line == 'stop\n':
+                            break
                 else:
                     break
 
-        wait_for = [read_stdin()]
-        if o:
-            wait_for.append(read_stream(process.stdout, hook.on_stdout))
-        if e:
-            wait_for.append(read_stream(process.stderr, hook.on_stderr))
+        out = [getattr(hook, 'on_stdout', None)]
+        err = [getattr(hook, 'on_stderr', None)]
+        wait_for = [
+            read_stdin(),
+            read_stream(process.stdout, out),
+            read_stream(process.stderr, err),
+        ]
         try:
             rc(asyncio.wait(wait_for))
             rc(process.wait())
@@ -289,6 +318,8 @@ def help():
 
     an additional function teardown will be called on server exit.
 
+    you can type a special hook command to reload the actual hook.
+
         =============================================================
         == mc utility by lonami exo (https://lonamiwebs.github.io) ==
         =============================================================
@@ -345,12 +376,12 @@ def create(args):
         conf(['reset'])
 
 
-def run(args, hook=None):
+def run(args, hook_file=None):
     min_ram = MIN_RAM if len(args) < 1 else int(args[0])
     max_ram = MAX_RAM if len(args) < 2 else int(args[1])
     _run('java',
          f'-Xms{min_ram}M', f'-Xmx{max_ram}M', '-jar', SERVER_JAR, 'nogui',
-         hook=hook)
+         hook_file=hook_file)
 
 
 def clean(args):
@@ -447,13 +478,6 @@ if __name__ == '__main__':
         hook = sys.argv.pop(hook)
         if not os.path.isfile(hook):
             _error(f'hook file {hook} does not exist')
-
-        try:
-            spec = importlib.util.spec_from_file_location('hook', hook)
-            hook = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(hook)
-        except Exception as e:
-            _error(f'failed to load hook: {e}')
     except ValueError:
         hook = None
 
@@ -467,7 +491,7 @@ if __name__ == '__main__':
     elif action == 'create':
         create(rest)
     elif action == 'run':
-        run(rest, hook=hook)
+        run(rest, hook_file=hook)
     elif action == 'clean':
         clean(rest)
     elif action == 'conf':
