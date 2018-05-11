@@ -213,6 +213,9 @@ def _run(program, *args, hook=None):
         except KeyboardInterrupt:
             _warn('keyboardinterrupt, waiting for exit...')
             rc(process.wait())
+        finally:
+            if hasattr(hook, 'teardown'):
+                hook.teardown()
 
 
 def _resize_image(file, to, width, height):
@@ -283,6 +286,8 @@ def help():
 
     the python script also has access to the pin variable, which
     is a file-like object represeting the spawned process' stdin.
+
+    an additional function teardown will be called on server exit.
 
         =============================================================
         == mc utility by lonami exo (https://lonamiwebs.github.io) ==
