@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import shutil
+import difflib
 import tempfile
 import webbrowser
 import urllib.request
@@ -81,7 +82,6 @@ class TempWorkDir:
     If no directory is specified, the directory will be switched to wherever
     this script file lives by making use of the __file__ special variable.
     """
-
     def __init__(self, where=None):
         self.original = None
         self.where = where or os.path.abspath(os.path.dirname(__file__))
@@ -146,6 +146,19 @@ def _read_properties():
         _error(f'file {name} does not exist. reset it first.')
 
     return result
+
+
+def _search_property(properties, search, threshold=0.50):
+    if not properties:
+        return None
+
+    seq = difflib.SequenceMatcher(b=search, autojunk=False)
+    scores = []
+    for prop in properties:
+        seq.set_seq1(prop)
+        scores.append((prop, seq.ratio()))
+    scores.sort(key=lambda t: t[1])
+    return scores[-1][0] if scores[-1][1] >= threshold else None
 
 
 def _run(program, *args):
@@ -311,7 +324,11 @@ def conf(args):
             if value:
                 print(value)
             else:
-                _error(f'property {which} was not found.')
+                msg = f'property {which} was not found.'
+                close = _search_property(properties, which)
+                if close:
+                    msg += f' did you mean {close}?'
+                _error(msg)
 
     elif action == 'set':
         if len(args) < 3:
