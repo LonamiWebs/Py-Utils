@@ -29,6 +29,21 @@ VERSIONS_URL = 'https://launchermeta.mojang.com/mc/game/version_manifest.json'
 MIN_RAM = 1024
 MAX_RAM = 3072
 
+# https://aikar.co/2018/07/02/tuning-the-jvm-g1gc-garbage-collector-flags-for-minecraft/
+FAST_FLAGS = (
+    '-XX:+UseG1GC',
+    '-XX:+UnlockExperimentalVMOptions',
+    '-XX:MaxGCPauseMillis=100',
+    '-XX:+DisableExplicitGC',
+    '-XX:TargetSurvivorRatio=90',
+    '-XX:G1NewSizePercent=50',
+    '-XX:G1MaxNewSizePercent=80',
+    '-XX:G1MixedGCLiveThresholdPercent=35',
+    '-XX:+AlwaysPreTouch',
+    '-XX:+ParallelRefProcEnabled',
+    '-Dusing.aikars.flags=mcflags.emc.gs'
+)
+
 # For setting up or cleaning the configuration
 SERVER_PROPERTIES = 'server.properties'
 SERVER_ICON = 'server-icon.png'
@@ -380,7 +395,7 @@ def run(args, hook_file=None):
     min_ram = MIN_RAM if len(args) < 1 else int(args[0])
     max_ram = MAX_RAM if len(args) < 2 else int(args[1])
     _run('java',
-         f'-Xms{min_ram}M', f'-Xmx{max_ram}M', '-jar', SERVER_JAR, 'nogui',
+         f'-Xms{min_ram}M', f'-Xmx{max_ram}M', *FAST_FLAGS, '-jar', SERVER_JAR, 'nogui',
          hook_file=hook_file)
 
 
